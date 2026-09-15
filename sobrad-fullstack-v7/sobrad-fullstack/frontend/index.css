@@ -1,0 +1,2029 @@
+/* =====================================================================
+   SÕBRAD design system
+   Ported from the original static prototype. Colours, type and tone are
+   fixed client direction — do not reinterpret them.
+   ===================================================================== */
+
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('./assets/fonts/SpaceGrotesk-Variable.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Tokens ---------- */
+:root {
+  /* Palette matched to the client's reference site (delawarelife.com):
+     a vivid cerulean blue as the primary brand colour, a teal accent
+     reserved for "selected/active" states (active sidebar item, active
+     tab, selected calendar day, focused inputs), and a dark navy for
+     text/nav-link colour on light surfaces. Exception: --danger stays
+     the original safety-red, unrelated to the brand palette —
+     intentional, so Emergency reads as visually distinct from the rest
+     of the app. --danger is used ONLY on the Emergency screen and the
+     emergency FAB, nowhere else. */
+  --bg: #f7f9fa;
+  --ambient: #eaf0f4;
+  --ink: #12243f;
+  --muted: rgba(10, 20, 28, 0.62);
+  --muted-2: rgba(10, 20, 28, 0.45);
+  --card: #ffffff;
+  --card-border: rgba(10, 20, 28, 0.09);
+  --primary: #1c7ed6;
+  --primary-ink: #ffffff;
+  --hero-bg: #1c7ed6;
+  --hero-text: #ffffff;
+  --hero-muted: rgba(255, 255, 255, 0.74);
+  --highlight: #0f9488;
+  --highlight-ink: #ffffff;
+  --danger: #d6483d;
+  --danger-ink: #ffffff;
+  --shadow: rgba(10, 20, 28, 0.16);
+  --shadow-soft: rgba(10, 20, 28, 0.1);
+  --input-bg: #ffffff;
+  --input-border: rgba(10, 20, 28, 0.16);
+  --toast-bg: #12243f;
+  --toast-ink: #f7f9fa;
+
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-label: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Nunito Sans', 'Segoe UI', system-ui, sans-serif;
+
+  --gutter: 22px;
+  --radius-card: 20px;
+  --radius-input: 14px;
+
+  /* Desktop content width: how wide the centered column of page content
+     (and the pinned FAB/toast layer) is allowed to get once the viewport
+     is wider than a phone. The app shell itself stays full-bleed — only
+     this inner column is capped, so a wide window reads as a real website
+     with a full-width navbar, not a phone card floating in gutters. */
+  --content-max: 1180px;
+  --content-pad: max(var(--gutter), calc((100% - var(--content-max)) / 2));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #001b2b;
+    --ambient: #001420;
+    --ink: #f2f6f9;
+    --muted: rgba(242, 246, 249, 0.68);
+    --muted-2: rgba(242, 246, 249, 0.48);
+    --card: #003351;
+    --card-border: rgba(242, 246, 249, 0.1);
+    --primary: #4da3e0;
+    --primary-ink: #0a141c;
+    --hero-bg: #1c7ed6;
+    --hero-text: #ffffff;
+    --hero-muted: rgba(255, 255, 255, 0.74);
+    --highlight: #2dd4bf;
+    --highlight-ink: #0a141c;
+    --danger: #e2584c;
+    --danger-ink: #1a0705;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --shadow-soft: rgba(0, 0, 0, 0.3);
+    --input-bg: #002943;
+    --input-border: rgba(242, 246, 249, 0.18);
+    --toast-bg: #f2f6f9;
+    --toast-ink: #001b2b;
+  }
+}
+
+/* Explicit theme toggle support — no toggle control ships in v1, but the
+   tokens are structured so one can be added later without rework. */
+:root[data-theme='dark'] {
+  --bg: #001b2b;
+  --ambient: #001420;
+  --ink: #f2f6f9;
+  --muted: rgba(242, 246, 249, 0.68);
+  --muted-2: rgba(242, 246, 249, 0.48);
+  --card: #003351;
+  --card-border: rgba(242, 246, 249, 0.1);
+  --primary: #4da3e0;
+  --primary-ink: #0a141c;
+  --hero-bg: #1c7ed6;
+  --hero-text: #ffffff;
+  --hero-muted: rgba(255, 255, 255, 0.74);
+  --highlight: #2dd4bf;
+  --highlight-ink: #0a141c;
+  --danger: #e2584c;
+  --danger-ink: #1a0705;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --shadow-soft: rgba(0, 0, 0, 0.3);
+  --input-bg: #002943;
+  --input-border: rgba(242, 246, 249, 0.18);
+  --toast-bg: #f2f6f9;
+  --toast-ink: #001b2b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(28, 126, 214, 0.14), transparent 55%),
+    radial-gradient(circle at 88% 88%, rgba(15, 148, 136, 0.16), transparent 50%),
+    var(--ambient);
+  font-family: var(--font-body);
+  color: var(--ink);
+}
+
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- App shell ----------
+   Full-bleed at every width — a phone-app screen edge-to-edge on narrow
+   viewports, and a real full-width website (no floating card, no side
+   gutters) on desktop. Individual pieces of content (the topbar row, the
+   screen body, the login card) are the ones that cap their own width via
+   --content-max, not the shell itself, so a header/navbar can still span
+   the full viewport while the text below it sits in a comfortable column. */
+.app-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  position: relative;
+  isolation: isolate;
+}
+
+.screen-inner {
+  padding: 28px var(--gutter) 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* ---------- Buttons & inputs ---------- */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+svg {
+  display: block;
+}
+
+.btn {
+  border: none;
+  border-radius: 16px;
+  padding: 16px 20px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 15.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+  box-shadow: 0 12px 24px rgba(28, 126, 214, 0.28);
+}
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.94;
+}
+.btn-quiet {
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 10px 6px;
+  font-family: var(--font-label);
+  font-size: 14.5px;
+  border-radius: 8px;
+  border: none;
+}
+.btn-quiet:hover {
+  text-decoration: underline;
+}
+.btn-danger {
+  background: var(--danger);
+  color: var(--danger-ink);
+  box-shadow: 0 12px 24px rgba(214, 72, 61, 0.3);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--card-border);
+  border-radius: 16px;
+  padding: 15px 20px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2.5px solid var(--highlight);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.field label {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--muted);
+}
+.field input,
+.field textarea {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: var(--radius-input);
+  padding: 13px 15px;
+  width: 100%;
+}
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--muted-2);
+}
+.field textarea {
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+
+/* Inline form errors — never the safety-red, that colour is reserved for
+   Emergency. A calm, tinted notice instead. */
+.form-error {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(28, 126, 214, 0.08);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* ---------- Pinned layer (emergency FAB + toast) ----------
+   Fixed to the viewport, centred to the same width as the page content
+   column (--content-max), so the FAB and toast stay pinned to the
+   bottom-right of the content — not glued to a phantom 480px column on
+   desktop, and not floating out at the far edges of an ultra-wide window
+   — regardless of how far the screen content scrolls. On phone widths
+   --content-max never binds (the viewport itself is narrower), so this
+   is pixel-identical to before there. */
+.pinned-layer {
+  position: fixed;
+  inset: 0;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  pointer-events: none;
+  z-index: 1000;
+}
+.pinned-layer > * {
+  pointer-events: auto;
+}
+
+.emergency-fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 40;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: var(--danger-ink);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 26px rgba(214, 72, 61, 0.4);
+  transition: transform 0.15s ease;
+}
+.emergency-fab:active {
+  transform: scale(0.95);
+}
+.emergency-fab .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 88px;
+  background: var(--toast-bg);
+  color: var(--toast-ink);
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 16px 30px var(--shadow);
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================= LOGIN ================= */
+.login-page .screen-inner {
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  padding-bottom: 28px;
+  min-height: 100vh;
+}
+.login-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.dst-mark-login {
+  width: 100px;
+  height: auto;
+  display: block;
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 23px;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+}
+.tagline {
+  font-family: var(--font-label);
+  font-weight: 500;
+  font-size: 14.5px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  margin-top: -2px;
+}
+.rotator {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--muted-2);
+  min-height: 20px;
+  margin-top: 22px;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+.rotator.hidden-line {
+  opacity: 0;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+/* ================= TOPBAR (shared) ================= */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 26px var(--gutter) 6px;
+}
+.topbar .back-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  flex: none;
+}
+.topbar h2 {
+  font-size: 19px;
+}
+.home-topbar {
+  padding: 26px var(--gutter) 4px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.home-topbar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.home-topbar h1 {
+  font-size: 26px;
+}
+.home-topbar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.dst-mark-home {
+  width: auto;
+  height: 34px;
+  display: block;
+}
+
+/* ================= HOME ================= */
+.hero-card {
+  background: var(--hero-bg);
+  color: var(--hero-text);
+  border-radius: var(--radius-card);
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 18px 34px var(--shadow-soft);
+}
+.hero-card .hero-date {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hero-muted);
+}
+.hero-card .hero-line {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.stat-chip {
+  flex: 1 1 calc(33.333% - 8px);
+  min-width: 104px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.stat-chip .icon {
+  color: var(--primary);
+}
+.stat-chip strong {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  display: block;
+  line-height: 1.2;
+}
+.stat-chip span {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.nav-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+.nav-field .eyebrow {
+  align-self: center;
+}
+.nav-circle-primary {
+  margin-top: 14px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-shadow:
+    0 22px 40px rgba(15, 148, 136, 0.35),
+    0 4px 0 rgba(0, 0, 0, 0.03) inset;
+}
+.nav-circle-primary .icon {
+  width: 32px;
+  height: 32px;
+}
+.nav-circle-primary span {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 16px;
+}
+.nav-circle-primary small {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.nav-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 22px 20px;
+  max-width: 320px;
+  margin: 26px auto 0;
+  padding-bottom: 8px;
+}
+.nav-circle-small {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.nav-circle-small:nth-child(odd) {
+  transform: translateY(-6px);
+}
+.nav-circle-small:nth-child(even) {
+  transform: translateY(14px);
+}
+.nav-circle-small .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
+}
+.nav-circle-small span {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+
+/* ================= BREATHING ================= */
+.breathe-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: 44px 20px 36px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  box-shadow: 0 16px 32px var(--shadow-soft);
+}
+.mute-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex: none;
+}
+.mute-toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+.breath-stage {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.breath-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed var(--card-border);
+}
+.breath-circle {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--primary), var(--ink));
+  box-shadow: 0 20px 40px rgba(28, 126, 214, 0.35);
+  transform: scale(0.82);
+  transition: transform 4s cubic-bezier(0.45, 0, 0.55, 1);
+}
+.breath-circle.inhale {
+  transform: scale(1.14);
+}
+.breath-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  color: var(--ink);
+  min-height: 24px;
+  transition: opacity 0.3s ease;
+}
+.breathe-note {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  max-width: 260px;
+  align-self: center;
+}
+.breathe-toggle {
+  width: 100%;
+}
+
+/* ================= JOURNAL ================= */
+.encrypt-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.encrypt-note .icon {
+  color: var(--primary);
+  width: 18px;
+  height: 18px;
+}
+.journal-entry-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 24px var(--shadow-soft);
+}
+.journal-entry-card .field textarea {
+  min-height: 104px;
+}
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.journal-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.journal-date {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+}
+.journal-preview {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* ================= CHAT ================= */
+/* Quiet, low-key row above the thread -- this sits in the same shared
+   ChatPanel used by both the dedicated Chat screen and desktop Home, so it
+   never competes visually with the greeting/hero above it or the composer
+   below. Deliberately just a text link, not a button with a border/fill:
+   clearing the whole conversation is something people reach for rarely and
+   calmly, not a primary action. */
+.chat-toolbar {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+}
+.chat-clear-btn {
+  padding: 4px 2px;
+}
+.chat-clear-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-family: var(--font-label);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.chat-clear-confirm .btn-quiet {
+  padding: 4px 2px;
+}
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-bubble {
+  max-width: 82%;
+  border-radius: 18px;
+  padding: 11px 15px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.chat-bubble.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.chat-bubble-name {
+  display: block;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.chat-bubble span:last-child {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.chat-bubble.from-sobrad {
+  align-self: flex-start;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.chat-bubble.from-user {
+  align-self: flex-end;
+  background: var(--primary);
+}
+.chat-bubble.from-user .chat-bubble-name {
+  color: rgba(255, 255, 255, 0.78);
+}
+.chat-bubble.from-user span:last-child {
+  color: var(--primary-ink);
+}
+.chat-composer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.chat-composer .field {
+  flex: 1;
+}
+.chat-composer .btn-primary {
+  padding: 13px 18px;
+  flex: none;
+}
+
+/* ================= MOOD ================= */
+.mood-intro {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.mood-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.mood-pill {
+  flex: 1 1 calc(33.333% - 10px);
+  min-width: 94px;
+  background: var(--card);
+  border: 1.5px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px 10px;
+  text-align: center;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  box-shadow: 0 8px 18px var(--shadow-soft);
+  transition: transform 0.15s ease;
+}
+.mood-pill:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.mood-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mood-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mood-card-date {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mood-card-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--primary);
+}
+.mood-empty {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* ================= PROGRESS ================= */
+.progress-note {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.progress-row {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.progress-row .icon {
+  color: var(--primary);
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.progress-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.progress-row-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.1;
+}
+.progress-row-label {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ================= EMERGENCY ================= */
+.emergency-header {
+  background: var(--danger);
+  color: var(--danger-ink);
+  padding: 26px var(--gutter) 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: 0 0 26px 26px;
+}
+.emergency-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.emergency-header-top .eyebrow {
+  color: rgba(255, 255, 255, 0.8);
+}
+:root[data-theme='dark'] .emergency-header-top .eyebrow {
+  color: rgba(26, 7, 5, 0.68);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .emergency-header-top .eyebrow {
+    color: rgba(26, 7, 5, 0.68);
+  }
+}
+.emergency-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.emergency-header h1 {
+  font-size: 23px;
+  line-height: 1.3;
+}
+.emergency-icon {
+  width: 30px;
+  height: 30px;
+}
+.emergency-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px var(--gutter) 100px;
+}
+.emergency-line {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.emergency-sub {
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  color: var(--muted-2);
+  text-align: center;
+  font-weight: 500;
+}
+.btn-primary.btn-danger {
+  font-size: 16.5px;
+  padding: 18px 20px;
+}
+
+/* ================= STUDY ================= */
+.field select {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: var(--radius-input);
+  padding: 13px 15px;
+  width: 100%;
+}
+
+.study-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 5px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-tab {
+  flex: 1 1 0;
+  border: none;
+  border-top: 4px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 7px 8px 11px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+/* Selected tab gets a thick, unmistakable brand-teal bar on its top edge
+   (matching the reference nav's bold "above the label" indicator) plus a
+   heavier weight, so it dominates next to the quiet, muted inactive tabs
+   instead of reading as a small color tweak. */
+.study-tab.active {
+  background: var(--ambient);
+  border-top-color: var(--highlight);
+  color: var(--highlight);
+  font-weight: 800;
+}
+
+.study-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.study-form-row .field {
+  flex: 1 1 140px;
+}
+.study-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---- Calendar ---- */
+.study-calendar-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.study-calendar-card,
+.study-day-panel {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 12px 24px var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.study-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.study-cal-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.study-cal-title strong {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+.study-today-btn {
+  padding: 2px 4px;
+  font-size: 11.5px;
+}
+.study-cal-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--ambient);
+  border: 1px solid var(--card-border);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.study-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--muted-2);
+}
+.study-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.study-cal-cell {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  background: var(--ambient);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0;
+}
+.study-cal-cell.empty {
+  background: transparent;
+}
+.study-cal-cell.today {
+  border-color: var(--primary);
+}
+.study-cal-cell.selected {
+  background: var(--highlight);
+  color: var(--highlight-ink);
+}
+.study-cal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.study-cal-cell.selected .study-cal-dot {
+  background: var(--highlight-ink);
+}
+.study-day-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.study-add-btn {
+  padding: 9px 14px;
+  font-size: 13.5px;
+}
+.study-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.study-event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--ambient);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.study-event-row.done {
+  opacity: 0.6;
+}
+.study-event-row.done .study-event-title {
+  text-decoration: line-through;
+}
+.study-event-check input {
+  margin-top: 3px;
+}
+.study-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.study-event-title {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+.study-event-meta {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-event-note {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.study-event-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+}
+.study-event-actions .btn-quiet {
+  padding: 4px 2px;
+  font-size: 12px;
+}
+.study-event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--card-border);
+  padding-top: 14px;
+}
+
+/* ---- Goals ---- */
+.study-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.study-new-goal-btn,
+.study-goal-save-btn {
+  align-self: flex-start;
+  padding: 12px 18px;
+  font-size: 14px;
+}
+.study-goal-form {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.study-goal-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+  overflow: hidden;
+}
+.study-goal-card.done {
+  opacity: 0.66;
+}
+.study-goal-summary {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  color: inherit;
+}
+.study-goal-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.study-goal-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+}
+.study-goal-meta {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-goal-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.study-goal-progress-bar {
+  width: 56px;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--ambient);
+  overflow: hidden;
+}
+.study-goal-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+}
+.study-goal-progress span {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--muted);
+  width: 32px;
+  text-align: right;
+}
+.study-goal-detail {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--card-border);
+  padding-top: 14px;
+}
+.study-goal-desc {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.study-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.study-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+}
+.study-step-row span.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.study-step-add {
+  display: flex;
+  gap: 8px;
+}
+.study-step-add input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  padding: 9px 12px;
+}
+.study-goal-detail-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---- Grades ---- */
+.study-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.study-threshold-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-threshold-label {
+  font-family: var(--font-label);
+  font-size: 13px;
+  color: var(--muted);
+}
+.study-threshold-label strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+.study-threshold-input {
+  width: 64px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+/* Individual-grade "Caution" label -- a calm, muted amber tone, distinct
+   from --danger (which stays reserved for Emergency, per the palette note
+   at the top of this file). Same non-alarming register as the aggregate
+   "needs focus" insight styling just below. */
+.study-caution-badge {
+  flex: none;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #8a5a00;
+  background: rgba(245, 166, 35, 0.18);
+  border-radius: 999px;
+  padding: 4px 9px;
+}
+:root[data-theme='dark'] .study-caution-badge {
+  color: #ffcf7a;
+  background: rgba(245, 166, 35, 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .study-caution-badge {
+    color: #ffcf7a;
+    background: rgba(245, 166, 35, 0.22);
+  }
+}
+
+.study-grade-form {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-insights {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-insights-summary {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.study-insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.study-insight-row {
+  background: var(--ambient);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.study-insight-subject {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+.study-insight-tip {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.study-grade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.study-grade-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.study-grade-group-title {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.study-grade-row {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-grade-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.study-grade-label {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.study-grade-date {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-grade-score {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--primary);
+  flex: none;
+}
+
+/* Desktop: calendar grid sits beside the day panel instead of stacking. */
+@media (min-width: 900px) {
+  .study-calendar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+  .study-grades {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+    grid-template-areas:
+      'threshold threshold'
+      'form insights'
+      'list list';
+    column-gap: 24px;
+    row-gap: 16px;
+    align-items: start;
+  }
+  .study-grades .study-threshold-row {
+    grid-area: threshold;
+  }
+  .study-grades .study-grade-form {
+    grid-area: form;
+  }
+  .study-grades .study-insights {
+    grid-area: insights;
+  }
+  .study-grades .study-grade-list {
+    grid-area: list;
+  }
+}
+
+/* ---------- Responsive: full-width website layout above phone sizes ----------
+   Below 481px nothing in this block applies — mobile stays exactly as it
+   was. From 481px up, the shell (already full-bleed, see .app-shell above)
+   gets a real full-width top bar, and page content sits in a centred
+   --content-max column instead of a narrow card floating in big gutters. */
+@media (min-width: 481px) {
+  /* The shell becomes a column of [sticky navbar] + [screen body], so the
+     screen body can be told to fill whatever height is left below the
+     navbar instead of just starting at the top and stopping wherever its
+     content happens to end. */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* Any screen with a live chat panel in it -- Chat itself, and Home once
+     it's showing ChatPanel at >=900px (see Home.jsx) -- needs a real,
+     definite viewport height to grow/shrink against, otherwise the flex
+     "thread grows, composer pinned to the bottom" trick below has nothing
+     to shrink the thread into, and the whole shell just grows tall enough
+     to fit every message instead of scrolling internally. Targeting
+     .chat-thread instead of .chat-screen means this applies wherever the
+     shared chat panel renders, not just on the dedicated Chat screen.
+     Every other screen keeps the shell's plain min-height (free to grow
+     taller than the viewport and let the page scroll normally, e.g. a
+     long journal-entry list). */
+  .app-shell:has(.chat-thread) {
+    height: 100vh;
+  }
+
+  .topbar,
+  .home-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--card);
+    border-bottom: 1px solid var(--card-border);
+    box-shadow: 0 2px 18px var(--shadow-soft);
+    padding-top: 18px;
+    padding-bottom: 14px;
+    padding-left: var(--content-pad);
+    padding-right: var(--content-pad);
+    flex: none;
+  }
+
+  .screen-inner {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-left: var(--content-pad);
+    padding-right: var(--content-pad);
+    /* Same clearance as the mobile FAB gap below — content (and, on Chat,
+       the pinned composer) can legitimately reach this bottom edge now
+       that screens fill the viewport height, so it still needs room to
+       clear the fixed emergency FAB without the two overlapping. */
+    padding-bottom: 100px;
+  }
+
+  /* Login keeps a comfortable, centred card width — a full-bleed login
+     form spanning the whole desktop content column would look broken,
+     even in an otherwise full-width app. */
+  .login-page .screen-inner {
+    max-width: 440px;
+    margin: 0 auto;
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+  }
+
+  /* Static, non-growing screens (a handful of cards, nothing that lists or
+     scrolls): centre the whole content block vertically in the leftover
+     height instead of pinning it to the top and dumping all the empty
+     space below it. */
+  .screen-center,
+  .home-screen {
+    justify-content: center;
+  }
+
+  /* Chat: a real chat layout — the thread grows (and scrolls, once there
+     are enough messages) while the composer stays pinned to the bottom of
+     the screen, never floating up near the top with empty space below. */
+  .chat-screen {
+    justify-content: flex-start;
+  }
+  .chat-screen .chat-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .chat-screen .chat-composer {
+    flex: none;
+  }
+
+  /* Journal: the form stays put near the top; the entries list below it
+     takes up whatever room is left, centring its own content (the empty
+     state, or a short list of entries) instead of leaving a dead gap under
+     a card that ends well short of the viewport. A long list simply grows
+     the page as normal and scrolls with it. */
+  .journal-screen {
+    justify-content: flex-start;
+  }
+  .journal-screen .journal-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    justify-content: center;
+  }
+}
+
+/* Desktop (>=900px): the persistent sidebar already covers Journal / Mood /
+   Chat / Breathe / Study / Progress, so Home's own tile grid + stats would
+   just be a redundant second nav -- Home.jsx renders the shared ChatPanel
+   there instead, so Home becomes a chat landing screen (greeting + hero
+   message, then the live thread + composer filling the rest of the
+   height), same layout trick as .chat-screen below. Below 900px there's no
+   sidebar, so Home.jsx still renders the original stats-row/nav-field
+   there and this block does not apply to them. */
+@media (min-width: 900px) {
+  .home-screen {
+    justify-content: flex-start;
+  }
+  .home-screen .chat-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .home-screen .chat-composer {
+    flex: none;
+  }
+}
+
+/* ================= SIDEBAR (desktop only, Gemini-style) =================
+   A persistent left nav from 900px up, replacing "go back to Home to reach
+   another section" with always-visible navigation. At that width Home's
+   own tile grid is redundant (the sidebar already covers everything it
+   linked to) so Home instead renders the shared chat panel -- see the
+   ".home-screen" desktop rules and Home.jsx. Every screen's Topbar
+   back-arrow is unaffected at every width. Hidden entirely below the
+   breakpoint: mobile/tablet keep exactly today's back-arrow + Home-tile
+   navigation, since there's no sidebar there to make it redundant.
+   Structurally,
+   RequireAuth wraps Sidebar + .app-shell in a new .app-layout row; below
+   900px that wrapper is just a plain block (Sidebar is display:none), so it
+   changes nothing about the existing mobile/tablet DOM's rendered layout. */
+.app-sidebar {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .app-layout {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .app-layout .app-shell {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* The pinned emergency FAB + toast layer centres itself in --content-max
+     across the full viewport (see .pinned-layer above); once the sidebar
+     claims the left 256px, its centred column has to start after that, or
+     the toast can visually sit under the sidebar's left edge. */
+  .pinned-layer {
+    left: 256px;
+  }
+
+  .app-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 256px;
+    flex: none;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--card);
+    border-right: 1px solid var(--card-border);
+    padding: 20px 12px;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 10px 22px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .sidebar-logo {
+    width: 24px;
+    height: auto;
+    display: block;
+    flex: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px 10px 8px;
+    border-radius: 12px;
+    border: none;
+    border-left: 4px solid transparent;
+    background: transparent;
+    font-family: var(--font-label);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink);
+    text-decoration: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  }
+  .sidebar-row .icon {
+    width: 19px;
+    height: 19px;
+    flex: none;
+    color: var(--primary);
+  }
+  .sidebar-row:hover {
+    background: var(--ambient);
+  }
+  /* Active nav row: a thick brand-teal bar on the leading edge (the vertical
+     equivalent of the reference site's bold top bar on its selected tab)
+     plus bolder text/icon, so it reads as clearly dominant against the
+     quiet, un-highlighted inactive rows around it. */
+  .sidebar-row.active {
+    background: var(--ambient);
+    border-left-color: var(--highlight);
+    color: var(--highlight);
+    font-weight: 800;
+  }
+  .sidebar-row.active .icon {
+    color: var(--highlight);
+  }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 12px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  /* Emergency keeps its own colour even here, matching the FAB -- it's the
+     same feature surfacing in a second place, not a new use of the
+     safety-red accent. */
+  .sidebar-row-emergency,
+  .sidebar-row-emergency .icon {
+    color: var(--danger);
+  }
+  .sidebar-row-emergency:hover {
+    background: rgba(214, 72, 61, 0.08);
+  }
+  .sidebar-row-emergency.active {
+    background: var(--danger);
+    border-left-color: var(--danger);
+    color: var(--danger-ink);
+    font-weight: 800;
+  }
+  .sidebar-row-emergency.active .icon {
+    color: var(--danger-ink);
+  }
+
+  .sidebar-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 10px 2px;
+    min-width: 0;
+  }
+  .sidebar-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-label);
+    font-weight: 700;
+    font-size: 13px;
+    flex: none;
+  }
+  .sidebar-account-name {
+    font-family: var(--font-label);
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ---------- Responsive: full-bleed at phone widths ---------- */
+@media (max-width: 480px) {
+  body {
+    padding: 0;
+    margin: 0;
+    background: var(--bg);
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    padding-top: calc(52px + env(safe-area-inset-top));
+  }
+  .home-topbar {
+    padding-top: calc(52px + env(safe-area-inset-top));
+  }
+  .login-page .screen-inner {
+    padding-top: calc(52px + env(safe-area-inset-top));
+  }
+
+  /* Every text input/textarea/select on the desktop type scale sits just
+     under 16px (15px, 14px, 13.5px in a couple of spots). Below 16px,
+     mobile Safari (and several Android browsers) auto-zooms the whole page
+     in the moment that field is focused, to keep it legible -- the page
+     visibly jumps bigger and, since the layout doesn't reflow to match,
+     things crowd and overlap until the person manually zooms back out.
+     This is exactly the "text is bigger and overlapping" bug reported from
+     a real phone: it never shows up in a desktop-browser/devtools check
+     because that auto-zoom is phone-browser-only behaviour. Bumping every
+     field to 16px here (mobile widths only, so the tighter desktop scale
+     is untouched) removes the trigger without changing how anything looks
+     at rest. */
+  .field input,
+  .field textarea,
+  .field select,
+  .study-threshold-input,
+  .study-step-add input {
+    font-size: 16px;
+  }
+
+  /* Chat, mobile only: below 481px the chat screen does NOT get the
+     height:100vh + "thread grows, composer pinned" treatment desktop gets
+     (see the min-width:481px block) -- it's just normal document flow, so
+     the composer ends up wherever the thread + toolbar push it, and the
+     base .screen-inner bottom padding (110px) is the only thing keeping it
+     clear of the fixed .emergency-fab. That flat 110px is a fixed distance
+     from the *content edge*, but the FAB's own clearance from the true
+     viewport bottom grows with env(safe-area-inset-bottom) (see
+     .emergency-fab above) -- on a device with a real bottom inset (home
+     indicator / gesture bar), the FAB sits that much higher, eating into
+     the fixed cushion. Once the thread has several messages and the
+     clear-conversation confirm banner (ChatPanel.jsx) is showing, the page
+     is tall enough that scrolling to the composer lands right at that
+     tight margin, and the Send button ends up partly behind the FAB.
+     Fix: on the chat screen specifically, grow the cushion by the same
+     safe-area term the FAB uses, so the gap between composer and FAB stays
+     a constant ~40px on every device instead of shrinking on notched
+     phones -- independent of thread length or whether the banner shows. */
+  .chat-screen {
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .breath-circle {
+    transition: none;
+  }
+  .rotator {
+    transition: none;
+  }
+  .toast {
+    transition: none;
+  }
+  .btn,
+  .emergency-fab {
+    transition: none;
+  }
+  .chat-bubble {
+    transition: none;
+  }
+}
