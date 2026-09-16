@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Topbar from '../components/Topbar.jsx';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
@@ -29,6 +29,22 @@ const CALENDAR_VIEW_MODES = [
   { value: 'week', label: 'Week' },
   { value: 'day', label: 'Day' },
 ];
+
+// ---- Tasks + Deadlines constants (Task Management / Deadline Tracker) -----
+
+const TASK_VIEW_MODES = [
+  { value: 'active', label: 'Active' },
+  { value: 'archive', label: 'Archive' },
+];
+
+const RECURRENCE_OPTIONS = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'custom', label: 'Custom (every N days)' },
+];
+
+const DEADLINE_EVENT_TYPES = ['assignment', 'exam'];
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -88,6 +104,33 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
+// Whole-calendar-days between today and `dateLike` (ISO date or datetime
+// string), ignoring time-of-day -- 0 = today, positive = future, negative =
+// overdue. Shared by the Tasks tab's "Skip to tomorrow" eligibility check and
+// the Deadlines tab's "in N days" / "overdue by N days" labels.
+function daysUntil(dateLike) {
+  if (!dateLike) return null;
+  const target = parseDateKey(toDateKey(new Date(dateLike)));
+  const today = parseDateKey(todayKey());
+  return Math.round((target - today) / 86400000);
+}
+
+function formatDaysRemaining(n) {
+  if (n === 0) return 'today';
+  if (n === 1) return 'in 1 day';
+  if (n > 1) return `in ${n} days`;
+  if (n === -1) return 'overdue by 1 day';
+  return `overdue by ${Math.abs(n)} days`;
+}
+
+// soon/later thresholds match the Grades tab's own "caution" register --
+// nothing alarmist, just a quiet nudge.
+function urgencyTier(n) {
+  if (n < 0) return 'overdue';
+  if (n <= 3) return 'soon';
+  return 'later';
+}
+
 export default function Study() {
   const [tab, setTab] = useState('calendar');
   const [subjects, setSubjects] = useState([]);
@@ -135,11 +178,59 @@ export default function Study() {
           >
             Grades
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'tasks'}
+            className={`study-tab${tab === 'tasks' ? ' active' : ''}`}
+            onClick={() => setTab('tasks')}
+          >
+            Tasks
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'deadlines'}
+            className={`study-tab${tab === 'deadlines' ? ' active' : ''}`}
+            onClick={() => setTab('deadlines')}
+          >
+            Deadlines
+          </button>
+          {/* AI Weekly Review -- see ReviewTab below and backend
+              routers/review.py for the feature. Added as its own tab,
+              alongside whatever else lands here, rather than folded into an
+              existing one. */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'review'}
+            className={`study-tab${tab === 'review' ? ' active' : ''}`}
+            onClick={() => setTab('review')}
+          >
+            Review
+          </button>
+          {/* AI Study Tools -- see AiToolsTab below and backend
+              routers/ai_tools.py. Own tab, own sub-picker inside it (Explain /
+              Quiz / Flashcards / Summarize / Study Plan / Explain a Mistake /
+              Study Technique) rather than one tab per tool. */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'ai-tools'}
+            className={`study-tab${tab === 'ai-tools' ? ' active' : ''}`}
+            onClick={() => setTab('ai-tools')}
+          >
+            AI Tools
+          </button>
         </div>
 
         {tab === 'calendar' && <CalendarTab subjects={subjects} />}
         {tab === 'goals' && <GoalsTab />}
         {tab === 'grades' && <GradesTab subjects={subjects} onSubjectsChange={loadSubjects} />}
+        {tab === 'tasks' && <TasksTab subjects={subjects} />}
+        {tab === 'deadlines' && <DeadlinesTab />}
+        {tab === 'review' && <ReviewTab />}
+        {tab === 'ai-tools' && <AiToolsTab />}
       </div>
     </>
   );
@@ -1404,6 +1495,1465 @@ function GradesTab({ subjects, onSubjectsChange }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ================================ Tasks =================================
+// Task management: a top-level/subtask tree (GET /api/tasks?parent_id=0,
+// then GET /api/tasks/{id} for each task's subtasks on expand), a create/
+// edit form covering every Task field including recurrence and a "blocked
+// by" dependency picker, search + tag filtering, and an Active/Archive
+// switch. Smart Rescheduling ("Skip to tomorrow") shows up per-row whenever
+// a task is active with a due date that's today or already past.
+
+function emptyTaskForm(parentId) {
+  return {
+    title: '',
+    description: '',
+    tags: '',
+    due_date: '',
+    estimated_minutes: '',
+    subject_id: '',
+    parent_task_id: parentId ? String(parentId) : '',
+    recurrence: 'none',
+    recurrence_interval_days: '',
+    notes: '',
+    progress_percent: 0,
+  };
+}
+
+function formatMinutes(mins) {
+  if (mins == null) return null;
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function TasksTab({ subjects }) {
+  const showToast = useToast();
+  const [subView, setSubView] = useState('active');
+  const [searchText, setSearchText] = useState('');
+  const [tagText, setTagText] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [topTasks, setTopTasks] = useState([]);
+  const [archiveTasks, setArchiveTasks] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [subtasksByParent, setSubtasksByParent] = useState({});
+  const [expanded, setExpanded] = useState({});
+  const [allTasksFlat, setAllTasksFlat] = useState([]);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [form, setForm] = useState(() => emptyTaskForm());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [depPick, setDepPick] = useState('');
+
+  const didMountRef = useRef(false);
+  const isSearching = Boolean(searchText.trim() || tagText.trim());
+
+  const subjectsById = useMemo(() => {
+    const map = {};
+    subjects.forEach((s) => {
+      map[s.id] = s.name;
+    });
+    return map;
+  }, [subjects]);
+
+  function loadAllTasksFlat() {
+    return api
+      .getTasks({})
+      .then((data) => setAllTasksFlat(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }
+
+  function loadTopTasks() {
+    return api
+      .getTasks({ parentId: 0 })
+      .then((data) => {
+        setTopTasks(Array.isArray(data) ? data : []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }
+
+  function loadArchive() {
+    return api
+      .getTasks({ status: 'archived' })
+      .then((data) => {
+        setArchiveTasks(Array.isArray(data) ? data : []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }
+
+  function loadSearch() {
+    return api
+      .getTasks({
+        q: searchText.trim() || undefined,
+        tag: tagText.trim() || undefined,
+        status: subView === 'archive' ? 'archived' : undefined,
+      })
+      .then((data) => {
+        setSearchResults(Array.isArray(data) ? data : []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }
+
+  function refreshView() {
+    setLoaded(false);
+    if (isSearching) return loadSearch();
+    if (subView === 'archive') return loadArchive();
+    return loadTopTasks();
+  }
+
+  function reloadExpanded() {
+    const ids = Object.keys(expanded).filter((id) => expanded[id]);
+    return Promise.all(
+      ids.map((id) =>
+        api
+          .getTask(Number(id))
+          .then((detail) => {
+            setSubtasksByParent((prev) => ({ ...prev, [id]: detail.subtasks || [] }));
+          })
+          .catch(() => {})
+      )
+    );
+  }
+
+  function refreshAll() {
+    return Promise.all([refreshView(), loadAllTasksFlat(), reloadExpanded()]);
+  }
+
+  // Loads immediately on mount, then debounces re-fetching whenever the
+  // search text, tag filter, or Active/Archive switch changes.
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      loadAllTasksFlat();
+      refreshView();
+      return;
+    }
+    const t = setTimeout(() => {
+      refreshView();
+    }, 280);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, tagText, subView]);
+
+  const knownTags = useMemo(() => {
+    const set = new Set();
+    allTasksFlat.forEach((t) => {
+      (t.tags || '').split(',').forEach((tg) => {
+        const trimmed = tg.trim();
+        if (trimmed) set.add(trimmed);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allTasksFlat]);
+
+  const taskById = useMemo(() => {
+    const map = {};
+    allTasksFlat.forEach((t) => {
+      map[t.id] = t;
+    });
+    return map;
+  }, [allTasksFlat]);
+
+  function toggleExpand(taskId) {
+    const key = String(taskId);
+    const willOpen = !expanded[key];
+    setExpanded((prev) => ({ ...prev, [key]: willOpen }));
+    if (willOpen && !subtasksByParent[key]) {
+      api
+        .getTask(taskId)
+        .then((detail) => {
+          setSubtasksByParent((prev) => ({ ...prev, [key]: detail.subtasks || [] }));
+        })
+        .catch(() => {});
+    }
+  }
+
+  function openCreateForm(parentId) {
+    setEditingTask(null);
+    setForm(emptyTaskForm(parentId));
+    setFormOpen(true);
+    setError('');
+    setDepPick('');
+  }
+
+  function openEditForm(task) {
+    setEditingTask(task);
+    setForm({
+      title: task.title,
+      description: task.description || '',
+      tags: task.tags || '',
+      due_date: task.due_date ? task.due_date.slice(0, 10) : '',
+      estimated_minutes: task.estimated_minutes != null ? String(task.estimated_minutes) : '',
+      subject_id: task.subject_id ? String(task.subject_id) : '',
+      parent_task_id: task.parent_task_id ? String(task.parent_task_id) : '',
+      recurrence: task.recurrence || 'none',
+      recurrence_interval_days:
+        task.recurrence_interval_days != null ? String(task.recurrence_interval_days) : '',
+      notes: task.notes || '',
+      progress_percent: task.progress_percent ?? 0,
+    });
+    setFormOpen(true);
+    setError('');
+    setDepPick('');
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditingTask(null);
+    setError('');
+  }
+
+  async function handleSubmit() {
+    const title = form.title.trim();
+    if (!title) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload = {
+        title,
+        description: form.description.trim() || null,
+        tags: form.tags.trim() || null,
+        due_date: form.due_date || null,
+        estimated_minutes: form.estimated_minutes !== '' ? Number(form.estimated_minutes) : null,
+        subject_id: form.subject_id ? Number(form.subject_id) : null,
+        parent_task_id: form.parent_task_id ? Number(form.parent_task_id) : null,
+        recurrence: form.recurrence,
+        recurrence_interval_days:
+          form.recurrence === 'custom' && form.recurrence_interval_days !== ''
+            ? Number(form.recurrence_interval_days)
+            : null,
+        notes: form.notes.trim() || null,
+        progress_percent: Number(form.progress_percent) || 0,
+      };
+      if (editingTask) {
+        await api.updateTask(editingTask.id, payload);
+      } else {
+        await api.createTask(payload);
+      }
+      closeForm();
+      await refreshAll();
+      showToast(editingTask ? 'Task updated.' : 'Task added.');
+    } catch (err) {
+      setError(err.message || "Couldn't save that task.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(task) {
+    try {
+      await api.deleteTask(task.id);
+      if (editingTask && editingTask.id === task.id) closeForm();
+      await refreshAll();
+      showToast('Task removed.');
+    } catch (err) {
+      showToast(err.message || "Couldn't remove that task.");
+    }
+  }
+
+  async function toggleDone(task) {
+    try {
+      await api.updateTask(task.id, { status: task.status === 'done' ? 'active' : 'done' });
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message || "Couldn't update that task.");
+    }
+  }
+
+  async function toggleArchive(task) {
+    try {
+      await api.updateTask(task.id, { status: task.status === 'archived' ? 'active' : 'archived' });
+      if (editingTask && editingTask.id === task.id) closeForm();
+      await refreshAll();
+      showToast(task.status === 'archived' ? 'Task restored.' : 'Task archived.');
+    } catch (err) {
+      showToast(err.message || "Couldn't update that task.");
+    }
+  }
+
+  async function handleReschedule(task) {
+    try {
+      await api.rescheduleTaskTomorrow(task.id);
+      await refreshAll();
+      showToast('Moved to tomorrow.');
+    } catch (err) {
+      showToast(err.message || "Couldn't reschedule that task.");
+    }
+  }
+
+  async function handleAddDependency() {
+    if (!editingTask || !depPick) return;
+    try {
+      const updated = await api.addTaskDependency(editingTask.id, Number(depPick));
+      setEditingTask(updated);
+      setDepPick('');
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message || "Couldn't add that dependency.");
+    }
+  }
+
+  async function handleRemoveDependency(dependsOnId) {
+    if (!editingTask) return;
+    try {
+      await api.removeTaskDependency(editingTask.id, dependsOnId);
+      setEditingTask((prev) =>
+        prev ? { ...prev, depends_on: prev.depends_on.filter((id) => id !== dependsOnId) } : prev
+      );
+      await refreshAll();
+    } catch (err) {
+      showToast(err.message || "Couldn't remove that dependency.");
+    }
+  }
+
+  function canReschedule(task) {
+    if (task.status !== 'active' || !task.due_date) return false;
+    return daysUntil(task.due_date) <= 0;
+  }
+
+  const parentOptions = allTasksFlat.filter((t) => !editingTask || t.id !== editingTask.id);
+  const dependencyOptions = allTasksFlat.filter(
+    (t) => editingTask && t.id !== editingTask.id && !(editingTask.depends_on || []).includes(t.id)
+  );
+
+  const rows = isSearching ? searchResults : subView === 'archive' ? archiveTasks : topTasks;
+  const emptyMessage = isSearching
+    ? 'No tasks match that search.'
+    : subView === 'archive'
+      ? 'No archived tasks.'
+      : 'No tasks yet. Add your first one below.';
+  const flatMode = isSearching || subView === 'archive';
+
+  return (
+    <div className="study-tasks">
+      {!isSearching && (
+        <div className="study-view-tabs" role="tablist">
+          {TASK_VIEW_MODES.map((v) => (
+            <button
+              type="button"
+              role="tab"
+              key={v.value}
+              aria-selected={subView === v.value}
+              className={`study-view-tab${subView === v.value ? ' active' : ''}`}
+              onClick={() => setSubView(v.value)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="study-tasks-toolbar">
+        <input
+          className="study-tasks-search"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search tasks…"
+          aria-label="Search tasks"
+        />
+        <input
+          className="study-tasks-tag-filter"
+          list="study-task-tag-options"
+          value={tagText}
+          onChange={(e) => setTagText(e.target.value)}
+          placeholder="Filter by tag…"
+          aria-label="Filter by tag"
+        />
+        <datalist id="study-task-tag-options">
+          {knownTags.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+        <button type="button" className="btn btn-primary study-add-btn" onClick={() => openCreateForm(null)}>
+          + Add task
+        </button>
+      </div>
+
+      {formOpen && (
+        <TaskForm
+          form={form}
+          setForm={setForm}
+          subjects={subjects}
+          parentOptions={parentOptions}
+          editingTask={editingTask}
+          saving={saving}
+          error={error}
+          onCancel={closeForm}
+          onSubmit={handleSubmit}
+          dependencyOptions={dependencyOptions}
+          depPick={depPick}
+          setDepPick={setDepPick}
+          onAddDependency={handleAddDependency}
+          onRemoveDependency={handleRemoveDependency}
+          taskById={taskById}
+        />
+      )}
+
+      {loaded && rows.length === 0 && <p className="mood-empty">{emptyMessage}</p>}
+
+      <div className="study-task-list">
+        {rows.map((task) =>
+          flatMode ? (
+            <TaskRow
+              key={task.id}
+              task={task}
+              taskById={taskById}
+              subjectsById={subjectsById}
+              onEdit={openEditForm}
+              onToggleDone={toggleDone}
+              onToggleArchive={toggleArchive}
+              onDelete={handleDelete}
+              onReschedule={handleReschedule}
+              canReschedule={canReschedule}
+              onAddSubtask={openCreateForm}
+              expandable={false}
+            />
+          ) : (
+            <TaskNode
+              key={task.id}
+              task={task}
+              taskById={taskById}
+              subjectsById={subjectsById}
+              expanded={expanded}
+              subtasksByParent={subtasksByParent}
+              onToggleExpand={toggleExpand}
+              onEdit={openEditForm}
+              onToggleDone={toggleDone}
+              onToggleArchive={toggleArchive}
+              onDelete={handleDelete}
+              onReschedule={handleReschedule}
+              canReschedule={canReschedule}
+              onAddSubtask={openCreateForm}
+            />
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Recursive tree node: renders one task row plus (when expanded) its
+// subtasks, fetched on demand via GET /api/tasks/{id}. Subtasks can
+// themselves be expanded the same way, so the tree isn't limited to one
+// level even though each individual fetch only returns one.
+function TaskNode({
+  task,
+  taskById,
+  subjectsById,
+  expanded,
+  subtasksByParent,
+  onToggleExpand,
+  onEdit,
+  onToggleDone,
+  onToggleArchive,
+  onDelete,
+  onReschedule,
+  canReschedule,
+  onAddSubtask,
+}) {
+  const key = String(task.id);
+  const isOpen = Boolean(expanded[key]);
+  const children = subtasksByParent[key];
+
+  return (
+    <div className="study-task-node">
+      <TaskRow
+        task={task}
+        taskById={taskById}
+        subjectsById={subjectsById}
+        onEdit={onEdit}
+        onToggleDone={onToggleDone}
+        onToggleArchive={onToggleArchive}
+        onDelete={onDelete}
+        onReschedule={onReschedule}
+        canReschedule={canReschedule}
+        onAddSubtask={onAddSubtask}
+        expandable
+        isOpen={isOpen}
+        onToggleExpand={() => onToggleExpand(task.id)}
+      />
+      {isOpen && (
+        <div className="study-task-node-children">
+          {children === undefined && <p className="mood-empty study-task-loading">Loading…</p>}
+          {children && children.length === 0 && (
+            <p className="mood-empty study-task-loading">No subtasks yet.</p>
+          )}
+          {children &&
+            children.map((child) => (
+              <TaskNode
+                key={child.id}
+                task={child}
+                taskById={taskById}
+                subjectsById={subjectsById}
+                expanded={expanded}
+                subtasksByParent={subtasksByParent}
+                onToggleExpand={onToggleExpand}
+                onEdit={onEdit}
+                onToggleDone={onToggleDone}
+                onToggleArchive={onToggleArchive}
+                onDelete={onDelete}
+                onReschedule={onReschedule}
+                canReschedule={canReschedule}
+                onAddSubtask={onAddSubtask}
+              />
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskRow({
+  task,
+  taskById,
+  subjectsById,
+  onEdit,
+  onToggleDone,
+  onToggleArchive,
+  onDelete,
+  onReschedule,
+  canReschedule,
+  onAddSubtask,
+  expandable,
+  isOpen,
+  onToggleExpand,
+}) {
+  const tags = (task.tags || '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const estimated = formatMinutes(task.estimated_minutes);
+  const actual = formatMinutes(task.actual_minutes);
+  const blockedBy = (task.depends_on || []).map((id) => taskById[id]).filter(Boolean);
+  const subjectName = task.subject_id ? subjectsById[task.subject_id] : null;
+
+  return (
+    <div
+      className={`study-task-card${task.status === 'done' ? ' done' : ''}${task.status === 'archived' ? ' archived' : ''}`}
+    >
+      <div className="study-task-card-top">
+        {expandable ? (
+          <button
+            type="button"
+            className="study-task-expand-btn"
+            onClick={onToggleExpand}
+            aria-label={isOpen ? 'Collapse subtasks' : 'Expand subtasks'}
+          >
+            {isOpen ? '▾' : '▸'}
+          </button>
+        ) : (
+          <span className="study-task-expand-spacer" aria-hidden="true" />
+        )}
+        <label className="study-task-check">
+          <input type="checkbox" checked={task.status === 'done'} onChange={() => onToggleDone(task)} />
+        </label>
+        <div className="study-task-body">
+          <span className="study-task-title">{task.title}</span>
+          <span className="study-task-meta">
+            {task.due_date ? formatDateKeyLong(task.due_date.slice(0, 10)) : 'No due date'}
+            {subjectName ? ` · ${subjectName}` : ''}
+            {task.recurrence && task.recurrence !== 'none'
+              ? ` · repeats ${task.recurrence === 'custom' ? `every ${task.recurrence_interval_days || 1}d` : task.recurrence}`
+              : ''}
+          </span>
+          {task.description && <span className="study-task-desc">{task.description}</span>}
+          {tags.length > 0 && (
+            <div className="study-task-tags">
+              {tags.map((t) => (
+                <span className="study-task-tag" key={t}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          {blockedBy.length > 0 && (
+            <div className="study-task-blocked">Blocked by: {blockedBy.map((b) => b.title).join(', ')}</div>
+          )}
+          {(estimated || actual) && (
+            <span className="study-task-durations">
+              {estimated ? `Est. ${estimated}` : 'Est. —'} · {actual ? `Actual ${actual}` : 'Actual —'}
+            </span>
+          )}
+        </div>
+        <div className="study-goal-progress">
+          <div className="study-goal-progress-bar">
+            <div className="study-goal-progress-fill" style={{ width: `${task.progress_percent}%` }} />
+          </div>
+          <span>{task.progress_percent}%</span>
+        </div>
+      </div>
+
+      <div className="study-task-actions">
+        {canReschedule(task) && (
+          <button type="button" className="btn-quiet" onClick={() => onReschedule(task)}>
+            Skip to tomorrow
+          </button>
+        )}
+        {task.status !== 'archived' && (
+          <button type="button" className="btn-quiet" onClick={() => onAddSubtask(task.id)}>
+            + Subtask
+          </button>
+        )}
+        <button type="button" className="btn-quiet" onClick={() => onEdit(task)}>
+          Edit
+        </button>
+        <button type="button" className="btn-quiet" onClick={() => onToggleArchive(task)}>
+          {task.status === 'archived' ? 'Restore' : 'Archive'}
+        </button>
+        <button type="button" className="btn-quiet" onClick={() => onDelete(task)}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TaskForm({
+  form,
+  setForm,
+  subjects,
+  parentOptions,
+  editingTask,
+  saving,
+  error,
+  onCancel,
+  onSubmit,
+  dependencyOptions,
+  depPick,
+  setDepPick,
+  onAddDependency,
+  onRemoveDependency,
+  taskById,
+}) {
+  const blockedBy = editingTask
+    ? (editingTask.depends_on || []).map((id) => taskById[id]).filter(Boolean)
+    : [];
+
+  return (
+    <div className="study-task-form">
+      <div className="field">
+        <label htmlFor="task-title">Title</label>
+        <input
+          id="task-title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          placeholder="e.g. Chemistry assignment"
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="task-desc">Description (optional)</label>
+        <textarea
+          id="task-desc"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          placeholder="Any detail that helps"
+        />
+      </div>
+      <div className="study-form-row">
+        <div className="field">
+          <label htmlFor="task-tags">Tags (comma-separated)</label>
+          <input
+            id="task-tags"
+            value={form.tags}
+            onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            placeholder="School, Personal"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="task-due">Due date (optional)</label>
+          <input
+            id="task-due"
+            type="date"
+            value={form.due_date}
+            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="task-estimate">Estimated minutes</label>
+          <input
+            id="task-estimate"
+            type="number"
+            min="0"
+            value={form.estimated_minutes}
+            onChange={(e) => setForm({ ...form, estimated_minutes: e.target.value })}
+            placeholder="e.g. 45"
+          />
+        </div>
+      </div>
+      <div className="study-form-row">
+        <div className="field">
+          <label htmlFor="task-subject">Subject (optional)</label>
+          <select
+            id="task-subject"
+            value={form.subject_id}
+            onChange={(e) => setForm({ ...form, subject_id: e.target.value })}
+          >
+            <option value="">None</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="task-parent">Parent task (optional)</label>
+          <select
+            id="task-parent"
+            value={form.parent_task_id}
+            onChange={(e) => setForm({ ...form, parent_task_id: e.target.value })}
+          >
+            <option value="">None (top-level)</option>
+            {parentOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="study-form-row">
+        <div className="field">
+          <label htmlFor="task-recurrence">Repeats</label>
+          <select
+            id="task-recurrence"
+            value={form.recurrence}
+            onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
+          >
+            {RECURRENCE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {form.recurrence === 'custom' && (
+          <div className="field">
+            <label htmlFor="task-recurrence-days">Every N days</label>
+            <input
+              id="task-recurrence-days"
+              type="number"
+              min="1"
+              value={form.recurrence_interval_days}
+              onChange={(e) => setForm({ ...form, recurrence_interval_days: e.target.value })}
+              placeholder="e.g. 3"
+            />
+          </div>
+        )}
+      </div>
+      <div className="field">
+        <label htmlFor="task-progress">
+          Progress <span className="study-task-progress-value">{form.progress_percent}%</span>
+        </label>
+        <input
+          id="task-progress"
+          type="range"
+          min="0"
+          max="100"
+          value={form.progress_percent}
+          onChange={(e) => setForm({ ...form, progress_percent: Number(e.target.value) })}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="task-notes">Notes</label>
+        <textarea
+          id="task-notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          placeholder="Freeform notes — no file uploads in this app, just text"
+        />
+      </div>
+
+      {editingTask && (
+        <div className="study-task-deps-editor">
+          <p className="eyebrow">Blocked by</p>
+          {blockedBy.length > 0 && (
+            <div className="study-task-dep-chips">
+              {blockedBy.map((b) => (
+                <span className="study-task-dep-chip" key={b.id}>
+                  {b.title}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveDependency(b.id)}
+                    aria-label={`Remove dependency on ${b.title}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {blockedBy.length === 0 && <p className="mood-empty">Not blocked by anything.</p>}
+          <div className="study-task-dep-add">
+            <select value={depPick} onChange={(e) => setDepPick(e.target.value)}>
+              <option value="">Choose a task…</option>
+              {dependencyOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="btn-quiet" onClick={onAddDependency} disabled={!depPick}>
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="study-form-actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={saving || !form.title.trim()}>
+          {saving ? 'Saving…' : editingTask ? 'Save changes' : 'Add task'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================== Deadlines ================================
+// Merges StudyEvents (assignment/exam types) with active Tasks that have a
+// due_date, sorted together by date, with a simple urgency badge and a
+// naive "suggested study schedule" line (estimated_minutes spread evenly
+// across the days remaining) for tasks.
+
+function DeadlinesTab() {
+  const [items, setItems] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  function load() {
+    const start = todayKey();
+    const end = toDateKey(addDays(start, 120));
+    return Promise.all([
+      api.getStudyEvents(start, end).catch(() => []),
+      api.getTasks({ status: 'active' }).catch(() => []),
+      api.getSubjects().catch(() => []),
+    ]).then(([events, tasks, subjects]) => {
+      const subjectsById = {};
+      (Array.isArray(subjects) ? subjects : []).forEach((s) => {
+        subjectsById[s.id] = s.name;
+      });
+      const eventItems = (Array.isArray(events) ? events : [])
+        .filter((ev) => DEADLINE_EVENT_TYPES.includes(ev.event_type) && !ev.done)
+        .map((ev) => ({
+          key: `event-${ev.id}`,
+          kind: 'event',
+          title: ev.title,
+          date: ev.date,
+          typeLabel: EVENT_TYPES.find((t) => t.value === ev.event_type)?.label || ev.event_type,
+          subjectName: ev.subject_name,
+        }));
+      const taskItems = (Array.isArray(tasks) ? tasks : [])
+        .filter((t) => t.due_date)
+        .map((t) => ({
+          key: `task-${t.id}`,
+          kind: 'task',
+          title: t.title,
+          date: t.due_date,
+          typeLabel: 'Task',
+          subjectName: t.subject_id ? subjectsById[t.subject_id] : null,
+          estimatedMinutes: t.estimated_minutes,
+        }));
+      const merged = [...eventItems, ...taskItems].sort((a, b) => new Date(a.date) - new Date(b.date));
+      setItems(merged);
+      setLoaded(true);
+    });
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <div className="study-deadlines">
+      {loaded && items.length === 0 && (
+        <p className="mood-empty">No upcoming assignments, exams or task deadlines.</p>
+      )}
+      <div className="study-deadline-list">
+        {items.map((item) => {
+          const n = daysUntil(item.date);
+          const tier = urgencyTier(n);
+          const daysRemaining = Math.max(n, 0);
+          const suggestion =
+            item.kind === 'task' && item.estimatedMinutes && n >= 0
+              ? Math.round(item.estimatedMinutes / Math.max(1, daysRemaining))
+              : null;
+          return (
+            <div className={`study-deadline-row study-deadline-${tier}`} key={item.key}>
+              <div className="study-deadline-main">
+                <span className="study-deadline-title">{item.title}</span>
+                <span className="study-deadline-meta">
+                  {item.typeLabel}
+                  {item.subjectName ? ` · ${item.subjectName}` : ''}
+                </span>
+                {suggestion !== null && (
+                  <span className="study-deadline-suggestion">~{suggestion} min/day until this is due</span>
+                )}
+              </div>
+              <span className={`study-deadline-badge study-deadline-badge-${tier}`}>
+                {formatDaysRemaining(n)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================ AI Weekly Review ============================
+// "Your Weekly Review" -- computed live from the last 7 days (today back 6
+// days) whenever this tab is opened, rather than pushed every Sunday (see
+// backend routers/review.py's module docstring for why: this simple FastAPI
+// app has no background job scheduler). Shows total study time, best focus
+// day, the interrupted-sessions "biggest distraction" proxy, a mood trend,
+// and an AI-narrated (deterministic-fallback) recommended-improvement card.
+
+function formatStudyDuration(totalMinutes) {
+  if (!totalMinutes || totalMinutes <= 0) return '0m';
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
+function formatReviewDate(iso) {
+  if (!iso) return '';
+  // iso here is a plain YYYY-MM-DD date string (no time-of-day), so parse it
+  // the same explicit y/m/d way the calendar helpers above do -- avoids the
+  // classic new Date('YYYY-MM-DD') UTC-midnight-rolls-back-a-day pitfall in
+  // negative-UTC-offset timezones.
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+const MOOD_TREND_COPY = {
+  improving: { label: 'Trending up', symbol: '↑' },
+  steady: { label: 'Holding steady', symbol: '→' },
+  declining: { label: 'Trending down', symbol: '↓' },
+  not_enough_data: { label: 'Not enough data yet', symbol: '·' },
+};
+
+function ReviewTab() {
+  const [review, setReview] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  function load() {
+    setLoaded(false);
+    setError('');
+    return api
+      .getWeeklyReview()
+      .then((data) => {
+        setReview(data);
+        setLoaded(true);
+      })
+      .catch((err) => {
+        setError(err.message || "Couldn't load your weekly review.");
+        setLoaded(true);
+      });
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  if (!loaded) {
+    return (
+      <div className="study-review">
+        <p className="mood-empty">…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="study-review">
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+        <button type="button" className="btn-quiet" onClick={load}>
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (!review) return null;
+
+  const hasAnyData = review.total_study_minutes > 0 || review.mood_trend !== 'not_enough_data';
+  const moodCopy = MOOD_TREND_COPY[review.mood_trend] || MOOD_TREND_COPY.not_enough_data;
+  const distractionText =
+    review.interrupted_session_count > 0
+      ? `Stopped ${review.interrupted_session_count} session${review.interrupted_session_count === 1 ? '' : 's'} early`
+      : hasAnyData
+        ? 'No sessions stopped early this week'
+        : 'Not enough data yet to spot a pattern here';
+
+  return (
+    <div className="study-review">
+      <div className="study-review-header">
+        <p className="eyebrow">This Week</p>
+        <h2 className="study-review-title">Your Weekly Review</h2>
+        <p className="study-review-range">
+          {formatReviewDate(review.window_start)} – {formatReviewDate(review.window_end)}
+        </p>
+      </div>
+
+      {!hasAnyData ? (
+        <p className="mood-empty study-review-empty">
+          Nothing logged yet this week — that&rsquo;s alright. A focus session or a mood check-in is
+          all it takes for this page to start filling in.
+        </p>
+      ) : (
+        <div className="study-review-stat-grid">
+          <div className="study-review-stat-card">
+            <span className="study-review-stat-label">Total study time</span>
+            <span className="study-review-stat-value">{formatStudyDuration(review.total_study_minutes)}</span>
+          </div>
+          <div className="study-review-stat-card">
+            <span className="study-review-stat-label">Best focus day</span>
+            <span className="study-review-stat-value">
+              {review.best_focus_day
+                ? formatReviewDate(review.best_focus_day)
+                : 'Not yet — no completed sessions'}
+            </span>
+            {review.best_focus_day && (
+              <span className="study-review-stat-sub">
+                {formatStudyDuration(review.best_focus_day_minutes)}
+              </span>
+            )}
+          </div>
+          <div className="study-review-stat-card">
+            <span className="study-review-stat-label">Biggest distraction</span>
+            <span className="study-review-stat-value study-review-stat-value-small">{distractionText}</span>
+          </div>
+          <div className="study-review-stat-card">
+            <span className="study-review-stat-label">Mood trend</span>
+            <span className="study-review-stat-value">
+              <span className="study-review-mood-symbol" aria-hidden="true">
+                {moodCopy.symbol}
+              </span>{' '}
+              {moodCopy.label}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="study-review-recommendation">
+        <p className="eyebrow">Recommended improvement</p>
+        <p className="study-review-recommendation-text">{review.recommended_improvement}</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================== AI Study Tools ==============================
+// Client's request, verbatim: "The AI can explain concepts, quiz users,
+// generate flashcards, summarise notes, create study plans, explain
+// mistakes, suggest better learning techniques." One tab, one tool picker,
+// one shared "Ask" flow -- see backend routers/ai_tools.py for the seven
+// endpoints this drives.
+//
+// Every call can come back as `{ available: false }` (no ANTHROPIC_API_KEY
+// configured on the server, or the AI call/its JSON parsing failed) -- that
+// is shown as a calm explanatory note, never as an error/crash.
+
+const AI_TOOLS_UNAVAILABLE_MESSAGE =
+  "This needs the study assistant's AI key to be set up — ask whoever manages Sõbrad to add an ANTHROPIC_API_KEY on Render.";
+
+const AI_TOOL_DEFS = [
+  {
+    key: 'explain',
+    label: 'Explain',
+    blurb: 'Explain a concept in plain, encouraging language.',
+    fields: [
+      {
+        name: 'topicOrText',
+        type: 'textarea',
+        label: 'What do you want explained?',
+        placeholder: 'e.g. Newton’s second law, or paste a confusing paragraph',
+      },
+    ],
+  },
+  {
+    key: 'quiz',
+    label: 'Quiz',
+    blurb: 'Get quizzed on a topic, with answers you can reveal one at a time.',
+    fields: [
+      {
+        name: 'topicOrText',
+        type: 'textarea',
+        label: 'Topic or text to be quizzed on',
+        placeholder: 'e.g. The French Revolution',
+      },
+      {
+        name: 'numQuestions',
+        type: 'number',
+        label: 'Number of questions',
+        min: 1,
+        max: 15,
+        defaultValue: 5,
+      },
+    ],
+  },
+  {
+    key: 'flashcards',
+    label: 'Flashcards',
+    blurb: 'Generate front/back flashcards for a topic.',
+    fields: [
+      {
+        name: 'topicOrText',
+        type: 'textarea',
+        label: 'Topic or text for the flashcards',
+        placeholder: 'e.g. Key vocabulary for cell biology',
+      },
+      {
+        name: 'numCards',
+        type: 'number',
+        label: 'Number of cards',
+        min: 1,
+        max: 20,
+        defaultValue: 8,
+      },
+    ],
+  },
+  {
+    key: 'summarize',
+    label: 'Summarize',
+    blurb: 'Summarize a chunk of notes into the key points.',
+    fields: [
+      {
+        name: 'text',
+        type: 'textarea',
+        label: 'Paste your notes',
+        placeholder: 'Paste the notes you want summarized',
+      },
+    ],
+  },
+  {
+    key: 'study-plan',
+    label: 'Study Plan',
+    blurb: 'Build a short, realistic plan toward a goal.',
+    fields: [
+      { name: 'goal', type: 'text', label: 'Goal', placeholder: 'e.g. Feel ready for the biology final' },
+      { name: 'timeframe', type: 'text', label: 'Timeframe (optional)', placeholder: 'e.g. 3 weeks' },
+      {
+        name: 'subjects',
+        type: 'text',
+        label: 'Subjects involved (optional, comma-separated)',
+        placeholder: 'e.g. Biology, Chemistry',
+      },
+    ],
+  },
+  {
+    key: 'explain-mistake',
+    label: 'Explain a Mistake',
+    blurb: 'Understand why an answer was wrong, gently.',
+    fields: [
+      { name: 'question', type: 'textarea', label: 'The question', placeholder: 'What was being asked?' },
+      { name: 'wrongAnswer', type: 'text', label: 'Your answer', placeholder: 'The answer you gave' },
+      {
+        name: 'correctAnswer',
+        type: 'text',
+        label: 'Correct answer (optional)',
+        placeholder: 'Leave blank and the tutor will work it out',
+      },
+    ],
+  },
+  {
+    key: 'study-technique',
+    label: 'Study Technique',
+    blurb: 'Get 2-3 concrete learning techniques for a challenge.',
+    fields: [
+      { name: 'subject', type: 'text', label: 'Subject (optional)', placeholder: 'e.g. Maths' },
+      {
+        name: 'challenge',
+        type: 'textarea',
+        label: 'What’s the challenge? (optional)',
+        placeholder: 'e.g. I get distracted easily, or I forget things by test day',
+      },
+    ],
+  },
+];
+
+function aiToolFormDefaults(toolDef) {
+  const defaults = {};
+  toolDef.fields.forEach((f) => {
+    defaults[f.name] = f.defaultValue !== undefined ? String(f.defaultValue) : '';
+  });
+  return defaults;
+}
+
+function AiToolsTab() {
+  const [toolKey, setToolKey] = useState(AI_TOOL_DEFS[0].key);
+  const toolDef = AI_TOOL_DEFS.find((t) => t.key === toolKey) || AI_TOOL_DEFS[0];
+  const [formsByTool, setFormsByTool] = useState(() => {
+    const initial = {};
+    AI_TOOL_DEFS.forEach((t) => {
+      initial[t.key] = aiToolFormDefaults(t);
+    });
+    return initial;
+  });
+  const [resultsByTool, setResultsByTool] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [revealedQuiz, setRevealedQuiz] = useState({});
+  const [flippedCards, setFlippedCards] = useState({});
+
+  const form = formsByTool[toolKey] || aiToolFormDefaults(toolDef);
+  const result = resultsByTool[toolKey] || null;
+
+  function setField(name, value) {
+    setFormsByTool((prev) => ({ ...prev, [toolKey]: { ...prev[toolKey], [name]: value } }));
+  }
+
+  function selectTool(key) {
+    setToolKey(key);
+    setError('');
+  }
+
+  const canAsk = useMemo(() => {
+    if (toolKey === 'study-technique') return true; // every field optional
+    if (toolKey === 'study-plan') return Boolean(form.goal && form.goal.trim());
+    if (toolKey === 'explain-mistake') {
+      return Boolean(form.question && form.question.trim() && form.wrongAnswer && form.wrongAnswer.trim());
+    }
+    if (toolKey === 'summarize') return Boolean(form.text && form.text.trim());
+    return Boolean(form.topicOrText && form.topicOrText.trim());
+  }, [toolKey, form]);
+
+  async function handleAsk() {
+    if (!canAsk || loading) return;
+    setLoading(true);
+    setError('');
+    setRevealedQuiz({});
+    setFlippedCards({});
+    try {
+      let data;
+      if (toolKey === 'explain') {
+        data = await api.aiExplain(form.topicOrText.trim());
+      } else if (toolKey === 'quiz') {
+        data = await api.aiQuiz(form.topicOrText.trim(), Number(form.numQuestions) || 5);
+      } else if (toolKey === 'flashcards') {
+        data = await api.aiFlashcards(form.topicOrText.trim(), Number(form.numCards) || 8);
+      } else if (toolKey === 'summarize') {
+        data = await api.aiSummarize(form.text.trim());
+      } else if (toolKey === 'study-plan') {
+        const subjects = (form.subjects || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        data = await api.aiStudyPlan({
+          goal: form.goal.trim(),
+          timeframe: (form.timeframe || '').trim() || undefined,
+          subjects,
+        });
+      } else if (toolKey === 'explain-mistake') {
+        data = await api.aiExplainMistake({
+          question: form.question.trim(),
+          wrongAnswer: form.wrongAnswer.trim(),
+          correctAnswer: (form.correctAnswer || '').trim() || undefined,
+        });
+      } else if (toolKey === 'study-technique') {
+        data = await api.aiStudyTechnique({
+          subject: (form.subject || '').trim() || undefined,
+          challenge: (form.challenge || '').trim() || undefined,
+        });
+      }
+      setResultsByTool((prev) => ({ ...prev, [toolKey]: data }));
+    } catch (err) {
+      setError(err.message || 'Something went wrong asking the study assistant.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderField(f) {
+    const value = form[f.name] ?? '';
+    if (f.type === 'textarea') {
+      return (
+        <div className="field" key={f.name}>
+          <label htmlFor={`ai-${toolKey}-${f.name}`}>{f.label}</label>
+          <textarea
+            id={`ai-${toolKey}-${f.name}`}
+            value={value}
+            placeholder={f.placeholder}
+            onChange={(e) => setField(f.name, e.target.value)}
+          />
+        </div>
+      );
+    }
+    if (f.type === 'number') {
+      return (
+        <div className="field" key={f.name}>
+          <label htmlFor={`ai-${toolKey}-${f.name}`}>{f.label}</label>
+          <input
+            id={`ai-${toolKey}-${f.name}`}
+            type="number"
+            min={f.min}
+            max={f.max}
+            value={value}
+            onChange={(e) => setField(f.name, e.target.value)}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="field" key={f.name}>
+        <label htmlFor={`ai-${toolKey}-${f.name}`}>{f.label}</label>
+        <input
+          id={`ai-${toolKey}-${f.name}`}
+          type="text"
+          value={value}
+          placeholder={f.placeholder}
+          onChange={(e) => setField(f.name, e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  function renderResult() {
+    if (!result) return null;
+    if (!result.available) {
+      return <p className="study-ai-unavailable">{AI_TOOLS_UNAVAILABLE_MESSAGE}</p>;
+    }
+
+    if (toolKey === 'explain' || toolKey === 'summarize' || toolKey === 'study-plan' || toolKey === 'explain-mistake') {
+      const text = result.explanation || result.summary || result.plan || '';
+      return (
+        <div className="study-ai-result-text">
+          {text.split(/\n{2,}/).map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
+      );
+    }
+
+    if (toolKey === 'quiz') {
+      return (
+        <div className="study-ai-quiz-list">
+          {result.questions.map((q, i) => (
+            <div className="study-ai-quiz-item" key={i}>
+              <p className="study-ai-quiz-question">
+                {i + 1}. {q.question}
+              </p>
+              {q.choices && q.choices.length > 0 && (
+                <ul className="study-ai-quiz-choices">
+                  {q.choices.map((c, ci) => (
+                    <li key={ci}>{c}</li>
+                  ))}
+                </ul>
+              )}
+              {revealedQuiz[i] ? (
+                <p className="study-ai-quiz-answer">Answer: {q.answer}</p>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  onClick={() => setRevealedQuiz((prev) => ({ ...prev, [i]: true }))}
+                >
+                  Reveal answer
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (toolKey === 'flashcards') {
+      return (
+        <div className="study-ai-flashcard-list">
+          {result.cards.map((c, i) => {
+            const flipped = Boolean(flippedCards[i]);
+            return (
+              <button
+                type="button"
+                className={`study-ai-flashcard${flipped ? ' flipped' : ''}`}
+                key={i}
+                onClick={() => setFlippedCards((prev) => ({ ...prev, [i]: !prev[i] }))}
+              >
+                <span className="study-ai-flashcard-label">{flipped ? 'Back' : 'Front'}</span>
+                <span className="study-ai-flashcard-text">{flipped ? c.back : c.front}</span>
+                <span className="study-ai-flashcard-hint">Tap to flip</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (toolKey === 'study-technique') {
+      return (
+        <ul className="study-ai-technique-list">
+          {result.techniques.map((t, i) => (
+            <li key={i}>{t}</li>
+          ))}
+        </ul>
+      );
+    }
+
+    return null;
+  }
+
+  return (
+    <div className="study-ai-tools">
+      <div className="study-ai-picker" role="tablist" aria-label="AI study tool">
+        {AI_TOOL_DEFS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={toolKey === t.key}
+            className={`study-ai-picker-btn${toolKey === t.key ? ' active' : ''}`}
+            onClick={() => selectTool(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="study-ai-blurb">{toolDef.blurb}</p>
+
+      <div className="study-ai-form">
+        {toolDef.fields.map(renderField)}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary study-ai-ask-btn"
+          onClick={handleAsk}
+          disabled={!canAsk || loading}
+        >
+          {loading ? 'Asking…' : 'Ask'}
+        </button>
+      </div>
+
+      {result && <div className="study-ai-result">{renderResult()}</div>}
     </div>
   );
 }

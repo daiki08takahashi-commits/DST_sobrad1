@@ -5,12 +5,14 @@ import {
   BreatheIcon,
   ChatIcon,
   EmergencyIcon,
+  FocusIcon,
   HomeIcon,
   JournalIcon,
   LogoutIcon,
   MoodIcon,
   MoonIcon,
   ProgressIcon,
+  SettingsIcon,
   StudyIcon,
 } from './icons.jsx';
 
@@ -30,7 +32,9 @@ const NAV_ITEMS = [
   { to: '/breathing', label: 'Breathe', Icon: BreatheIcon },
   { to: '/insomnia', label: 'Sleep', Icon: MoonIcon },
   { to: '/study', label: 'Study', Icon: StudyIcon },
+  { to: '/focus', label: 'Focus', Icon: FocusIcon },
   { to: '/progress', label: 'Progress', Icon: ProgressIcon },
+  { to: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
 export default function Sidebar() {

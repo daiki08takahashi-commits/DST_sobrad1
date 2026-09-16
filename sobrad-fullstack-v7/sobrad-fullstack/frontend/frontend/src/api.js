@@ -113,12 +113,58 @@ export function login(username, password) {
   });
 }
 
-export function register(username, password) {
+export function register(username, password, { securityQuestion, securityAnswer } = {}) {
+  const body = { username, password };
+  if (securityQuestion) body.security_question = securityQuestion;
+  if (securityAnswer) body.security_answer = securityAnswer;
   return request('/auth/register', {
     method: 'POST',
     auth: false,
-    body: { username, password },
+    body,
   });
+}
+
+// ---- auth: password reset (security-question based) -----------------------
+// This app doesn't collect email addresses, so password reset is done via a
+// security question set at registration (or later, from Settings) rather
+// than an email link.
+
+export function getSecurityQuestion(username) {
+  return request(`/auth/security-question?username=${encodeURIComponent(username)}`, {
+    auth: false,
+  });
+}
+
+export function resetPassword({ username, securityAnswer, newPassword }) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    auth: false,
+    body: { username, security_answer: securityAnswer, new_password: newPassword },
+  });
+}
+
+export function changePassword({ currentPassword, newPassword }) {
+  return request('/auth/change-password', {
+    method: 'POST',
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
+export function setSecurityQuestion({ securityQuestion, securityAnswer }) {
+  return request('/auth/security-question', {
+    method: 'POST',
+    body: { security_question: securityQuestion, security_answer: securityAnswer },
+  });
+}
+
+// ---- settings: accessibility ------------------------------------------------
+
+export function getAccessibilitySettings() {
+  return request('/settings/accessibility');
+}
+
+export function updateAccessibilitySettings(patch) {
+  return request('/settings/accessibility', { method: 'PATCH', body: patch });
 }
 
 // ---- stats --------------------------------------------------------------
@@ -295,6 +341,129 @@ export function updateStudySettings(passingThreshold) {
   return request('/study/settings', {
     method: 'PATCH',
     body: { passing_threshold: passingThreshold },
+  });
+}
+
+// ---- study: tasks (Task Management + Deadline Tracker) ----------------------
+
+export function getTasks({ q, tag, status: statusFilter, parentId } = {}) {
+  const params = [];
+  if (q) params.push(`q=${encodeURIComponent(q)}`);
+  if (tag) params.push(`tag=${encodeURIComponent(tag)}`);
+  if (statusFilter) params.push(`status=${encodeURIComponent(statusFilter)}`);
+  if (parentId !== undefined && parentId !== null) params.push(`parent_id=${parentId}`);
+  const qs = params.length ? `?${params.join('&')}` : '';
+  return request(`/tasks${qs}`);
+}
+
+export function getTask(id) {
+  return request(`/tasks/${id}`);
+}
+
+export function createTask(payload) {
+  return request('/tasks', { method: 'POST', body: payload });
+}
+
+export function updateTask(id, patch) {
+  return request(`/tasks/${id}`, { method: 'PATCH', body: patch });
+}
+
+export function deleteTask(id) {
+  return request(`/tasks/${id}`, { method: 'DELETE' });
+}
+
+export function addTaskDependency(id, dependsOnTaskId) {
+  return request(`/tasks/${id}/dependencies`, {
+    method: 'POST',
+    body: { depends_on_task_id: dependsOnTaskId },
+  });
+}
+
+export function removeTaskDependency(id, dependsOnTaskId) {
+  return request(`/tasks/${id}/dependencies/${dependsOnTaskId}`, { method: 'DELETE' });
+}
+
+export function rescheduleTaskTomorrow(id) {
+  return request(`/tasks/${id}/reschedule-tomorrow`, { method: 'POST' });
+}
+
+// ---- focus sessions (Focus Session Timer + Emergency Focus Mode) -----------
+
+export function startFocusSession({ mode, plannedMinutes, taskId }) {
+  return request('/focus/start', {
+    method: 'POST',
+    body: {
+      mode,
+      planned_minutes: plannedMinutes,
+      ...(taskId ? { task_id: taskId } : {}),
+    },
+  });
+}
+
+export function getActiveFocusSession() {
+  return request('/focus/active');
+}
+
+export function completeFocusSession(id, completed) {
+  return request(`/focus/${id}/complete`, { method: 'POST', body: { completed } });
+}
+
+// ---- AI Weekly Review (Study > Review tab) -----------------------------
+// Always-on "last 7 days" review, computed live -- see backend
+// routers/review.py's module docstring for why this isn't push-scheduled.
+
+export function getWeeklyReview(endDate) {
+  const qs = endDate ? `?end_date=${endDate}` : '';
+  return request(`/review/weekly${qs}`);
+}
+
+// ---- AI Study Tools (Study > AI Tools tab) ---------------------------------
+// Each of these resolves to `{ available: false, ... }` (never throws, never
+// 500s) whenever no ANTHROPIC_API_KEY is configured server-side, or the AI
+// call/its JSON parsing failed -- see backend routers/ai_tools.py's module
+// docstring. The frontend shows a calm explanatory message in that case
+// rather than treating it as an error.
+
+export function aiExplain(topicOrText) {
+  return request('/ai-tools/explain', { method: 'POST', body: { topic_or_text: topicOrText } });
+}
+
+export function aiQuiz(topicOrText, numQuestions) {
+  return request('/ai-tools/quiz', {
+    method: 'POST',
+    body: { topic_or_text: topicOrText, num_questions: numQuestions || undefined },
+  });
+}
+
+export function aiFlashcards(topicOrText, numCards) {
+  return request('/ai-tools/flashcards', {
+    method: 'POST',
+    body: { topic_or_text: topicOrText, num_cards: numCards || undefined },
+  });
+}
+
+export function aiSummarize(text) {
+  return request('/ai-tools/summarize', { method: 'POST', body: { text } });
+}
+
+export function aiStudyPlan({ goal, timeframe, subjects }) {
+  return request('/ai-tools/study-plan', {
+    method: 'POST',
+    body: { goal, timeframe: timeframe || null, subjects: subjects && subjects.length ? subjects : null },
+  });
+}
+
+export function aiExplainMistake({ question, wrongAnswer, correctAnswer }) {
+  return request('/ai-tools/explain-mistake', {
+    method: 'POST',
+    body: { question, wrong_answer: wrongAnswer, correct_answer: correctAnswer || null },
+  });
+}
+
+export function aiStudyTechnique({ subject, challenge } = {}) {
+  return request('/ai-tools/study-technique', {
+    method: 'POST',
+    body: { subject: subject || null, challenge: challenge || null },
   });
 }
 

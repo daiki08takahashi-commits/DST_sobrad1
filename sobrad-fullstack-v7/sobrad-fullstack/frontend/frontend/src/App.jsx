@@ -1,6 +1,7 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import { ToastProvider } from './ToastContext.jsx';
+import { SettingsProvider } from './SettingsContext.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
@@ -12,6 +13,8 @@ import Progress from './pages/Progress.jsx';
 import Study from './pages/Study.jsx';
 import Insomnia from './pages/Insomnia.jsx';
 import Emergency from './pages/Emergency.jsx';
+import Focus from './pages/Focus.jsx';
+import Settings from './pages/Settings.jsx';
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
@@ -22,6 +25,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        <SettingsProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
@@ -37,11 +41,14 @@ export default function App() {
               <Route path="/study" element={<Study />} />
               <Route path="/insomnia" element={<Insomnia />} />
               <Route path="/emergency" element={<Emergency />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/focus" element={<Focus />} />
             </Route>
 
             <Route path="*" element={<RootRedirect />} />
           </Routes>
         </BrowserRouter>
+        </SettingsProvider>
       </ToastProvider>
     </AuthProvider>
   );
