@@ -14,32 +14,36 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  /* Palette derived from the DST logo blue (RGB 1,122,194 / #017AC2) via HSL
-     shifts. Exception: --danger stays the original safety-red, unrelated to
-     the brand blue — intentional, so Emergency reads as visually distinct
-     from the rest of the app. --danger is used ONLY on the Emergency screen
-     and the emergency FAB, nowhere else. */
+  /* Palette matched to the client's reference site (delawarelife.com):
+     a vivid cerulean blue as the primary brand colour, a teal accent
+     reserved for "selected/active" states (active sidebar item, active
+     tab, selected calendar day, focused inputs), and a dark navy for
+     text/nav-link colour on light surfaces. Exception: --danger stays
+     the original safety-red, unrelated to the brand palette —
+     intentional, so Emergency reads as visually distinct from the rest
+     of the app. --danger is used ONLY on the Emergency screen and the
+     emergency FAB, nowhere else. */
   --bg: #f7f9fa;
   --ambient: #eaf0f4;
-  --ink: #0a141c;
+  --ink: #12243f;
   --muted: rgba(10, 20, 28, 0.62);
   --muted-2: rgba(10, 20, 28, 0.45);
   --card: #ffffff;
   --card-border: rgba(10, 20, 28, 0.09);
-  --primary: #0079c1;
+  --primary: #1c7ed6;
   --primary-ink: #ffffff;
-  --hero-bg: #00253a;
+  --hero-bg: #1c7ed6;
   --hero-text: #ffffff;
   --hero-muted: rgba(255, 255, 255, 0.74);
-  --highlight: #40adef;
-  --highlight-ink: #0a141c;
+  --highlight: #0f9488;
+  --highlight-ink: #ffffff;
   --danger: #d6483d;
   --danger-ink: #ffffff;
   --shadow: rgba(10, 20, 28, 0.16);
   --shadow-soft: rgba(10, 20, 28, 0.1);
   --input-bg: #ffffff;
   --input-border: rgba(10, 20, 28, 0.16);
-  --toast-bg: #0a141c;
+  --toast-bg: #12243f;
   --toast-ink: #f7f9fa;
 
   --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
@@ -68,12 +72,12 @@
     --muted-2: rgba(242, 246, 249, 0.48);
     --card: #003351;
     --card-border: rgba(242, 246, 249, 0.1);
-    --primary: #40adef;
+    --primary: #4da3e0;
     --primary-ink: #0a141c;
-    --hero-bg: #00253a;
+    --hero-bg: #1c7ed6;
     --hero-text: #ffffff;
     --hero-muted: rgba(255, 255, 255, 0.74);
-    --highlight: #6cc3ff;
+    --highlight: #2dd4bf;
     --highlight-ink: #0a141c;
     --danger: #e2584c;
     --danger-ink: #1a0705;
@@ -96,12 +100,12 @@
   --muted-2: rgba(242, 246, 249, 0.48);
   --card: #003351;
   --card-border: rgba(242, 246, 249, 0.1);
-  --primary: #40adef;
+  --primary: #4da3e0;
   --primary-ink: #0a141c;
-  --hero-bg: #00253a;
+  --hero-bg: #1c7ed6;
   --hero-text: #ffffff;
   --hero-muted: rgba(255, 255, 255, 0.74);
-  --highlight: #6cc3ff;
+  --highlight: #2dd4bf;
   --highlight-ink: #0a141c;
   --danger: #e2584c;
   --danger-ink: #1a0705;
@@ -129,8 +133,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 18% 12%, rgba(0, 121, 193, 0.14), transparent 55%),
-    radial-gradient(circle at 88% 88%, rgba(64, 173, 239, 0.16), transparent 50%),
+    radial-gradient(circle at 18% 12%, rgba(28, 126, 214, 0.14), transparent 55%),
+    radial-gradient(circle at 88% 88%, rgba(15, 148, 136, 0.16), transparent 50%),
     var(--ambient);
   font-family: var(--font-body);
   color: var(--ink);
@@ -219,7 +223,7 @@ svg {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-ink);
-  box-shadow: 0 12px 24px rgba(0, 121, 193, 0.28);
+  box-shadow: 0 12px 24px rgba(28, 126, 214, 0.28);
 }
 .btn-primary:hover:not(:disabled) {
   opacity: 0.94;
@@ -261,7 +265,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2.5px solid var(--primary);
+  outline: 2.5px solid var(--highlight);
   outline-offset: 3px;
   border-radius: 10px;
 }
@@ -306,7 +310,7 @@ textarea:focus-visible {
   font-weight: 600;
   font-size: 13px;
   color: var(--ink);
-  background: rgba(0, 121, 193, 0.08);
+  background: rgba(28, 126, 214, 0.08);
   border: 1px solid var(--card-border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -582,7 +586,7 @@ textarea:focus-visible {
   justify-content: center;
   gap: 9px;
   box-shadow:
-    0 22px 40px rgba(64, 173, 239, 0.35),
+    0 22px 40px rgba(15, 148, 136, 0.35),
     0 4px 0 rgba(0, 0, 0, 0.03) inset;
 }
 .nav-circle-primary .icon {
@@ -643,6 +647,7 @@ textarea:focus-visible {
 
 /* ================= BREATHING ================= */
 .breathe-card {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 24px;
@@ -653,6 +658,25 @@ textarea:focus-visible {
   align-items: center;
   gap: 30px;
   box-shadow: 0 16px 32px var(--shadow-soft);
+}
+.mute-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex: none;
+}
+.mute-toggle .icon {
+  width: 16px;
+  height: 16px;
 }
 .breath-stage {
   position: relative;
@@ -672,8 +696,8 @@ textarea:focus-visible {
   width: 150px;
   height: 150px;
   border-radius: 50%;
-  background: linear-gradient(160deg, var(--primary), var(--hero-bg));
-  box-shadow: 0 20px 40px rgba(0, 121, 193, 0.35);
+  background: linear-gradient(160deg, var(--primary), var(--ink));
+  box-shadow: 0 20px 40px rgba(28, 126, 214, 0.35);
   transform: scale(0.82);
   transition: transform 4s cubic-bezier(0.45, 0, 0.55, 1);
 }
@@ -1059,17 +1083,25 @@ textarea:focus-visible {
 .study-tab {
   flex: 1 1 0;
   border: none;
+  border-top: 4px solid transparent;
   background: transparent;
   border-radius: 12px;
-  padding: 11px 8px;
+  padding: 7px 8px 11px;
   font-family: var(--font-label);
   font-weight: 600;
   font-size: 13.5px;
   color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
+/* Selected tab gets a thick, unmistakable brand-teal bar on its top edge
+   (matching the reference nav's bold "above the label" indicator) plus a
+   heavier weight, so it dominates next to the quiet, muted inactive tabs
+   instead of reading as a small color tweak. */
 .study-tab.active {
-  background: var(--primary);
-  color: var(--primary-ink);
+  background: var(--ambient);
+  border-top-color: var(--highlight);
+  color: var(--highlight);
+  font-weight: 800;
 }
 
 .study-form-row {
@@ -1175,8 +1207,8 @@ textarea:focus-visible {
   border-color: var(--primary);
 }
 .study-cal-cell.selected {
-  background: var(--primary);
-  color: var(--primary-ink);
+  background: var(--highlight);
+  color: var(--highlight-ink);
 }
 .study-cal-dot {
   width: 5px;
@@ -1185,7 +1217,7 @@ textarea:focus-visible {
   background: var(--primary);
 }
 .study-cal-cell.selected .study-cal-dot {
-  background: var(--primary-ink);
+  background: var(--highlight-ink);
 }
 .study-day-panel-head {
   display: flex;
@@ -1815,9 +1847,10 @@ textarea:focus-visible {
     align-items: center;
     gap: 12px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 10px 12px 10px 8px;
     border-radius: 12px;
     border: none;
+    border-left: 4px solid transparent;
     background: transparent;
     font-family: var(--font-label);
     font-weight: 600;
@@ -1826,7 +1859,7 @@ textarea:focus-visible {
     text-decoration: none;
     text-align: left;
     cursor: pointer;
-    transition: background 0.12s ease;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   }
   .sidebar-row .icon {
     width: 19px;
@@ -1837,12 +1870,18 @@ textarea:focus-visible {
   .sidebar-row:hover {
     background: var(--ambient);
   }
+  /* Active nav row: a thick brand-teal bar on the leading edge (the vertical
+     equivalent of the reference site's bold top bar on its selected tab)
+     plus bolder text/icon, so it reads as clearly dominant against the
+     quiet, un-highlighted inactive rows around it. */
   .sidebar-row.active {
-    background: var(--primary);
-    color: var(--primary-ink);
+    background: var(--ambient);
+    border-left-color: var(--highlight);
+    color: var(--highlight);
+    font-weight: 800;
   }
   .sidebar-row.active .icon {
-    color: var(--primary-ink);
+    color: var(--highlight);
   }
 
   .sidebar-bottom {
@@ -1866,7 +1905,9 @@ textarea:focus-visible {
   }
   .sidebar-row-emergency.active {
     background: var(--danger);
+    border-left-color: var(--danger);
     color: var(--danger-ink);
+    font-weight: 800;
   }
   .sidebar-row-emergency.active .icon {
     color: var(--danger-ink);

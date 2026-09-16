@@ -130,6 +130,25 @@ export function LogoutIcon(props) {
   );
 }
 
+export function SoundOnIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <path d="M4 10v4h4l5 4V6L8 10H4z" />
+      <path d="M16.5 9a4.5 4.5 0 0 1 0 6" />
+      <path d="M18.7 6.8a8 8 0 0 1 0 10.4" />
+    </svg>
+  );
+}
+
+export function SoundOffIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <path d="M4 10v4h4l5 4V6L8 10H4z" />
+      <path d="M16 9l5 6M21 9l-5 6" />
+    </svg>
+  );
+}
+
 export function PhoneIcon(props) {
   return (
     <svg {...base} strokeWidth="1.7" className="icon" {...props}>
