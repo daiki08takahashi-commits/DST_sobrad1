@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/Topbar.jsx';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
@@ -131,8 +132,35 @@ function urgencyTier(n) {
   return 'later';
 }
 
+// ---- Today Mode helpers -----------------------------------------------
+// Tasks carry an ISO due_date (or null). These compare by *calendar day*
+// in the viewer's local time, not by timestamp, since "due today" should
+// mean today regardless of what time of day the due_date happens to be.
+// Moved here (from Home.jsx) along with the Today tab itself -- see
+// TodayTab below.
+function startOfLocalDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isSameLocalDay(isoString, ref) {
+  if (!isoString) return false;
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return false;
+  return startOfLocalDay(d).getTime() === startOfLocalDay(ref).getTime();
+}
+
+function isAfterLocalDay(isoString, ref) {
+  if (!isoString) return false;
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return false;
+  return startOfLocalDay(d).getTime() > startOfLocalDay(ref).getTime();
+}
+
 export default function Study() {
-  const [tab, setTab] = useState('calendar');
+  // "Today Mode" used to live on Home, between the hero card and the stats
+  // row. It's moved here as Study's first tab (see TodayTab below) so Study
+  // opens on "Today" by default and Home stays just hero/stats/nav ring.
+  const [tab, setTab] = useState('today');
   const [subjects, setSubjects] = useState([]);
 
   function loadSubjects() {
@@ -151,6 +179,15 @@ export default function Study() {
       <Topbar title="Study" />
       <div className="screen-inner study-screen">
         <div className="study-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'today'}
+            className={`study-tab${tab === 'today' ? ' active' : ''}`}
+            onClick={() => setTab('today')}
+          >
+            Today
+          </button>
           <button
             type="button"
             role="tab"
@@ -224,6 +261,7 @@ export default function Study() {
           </button>
         </div>
 
+        {tab === 'today' && <TodayTab />}
         {tab === 'calendar' && <CalendarTab subjects={subjects} />}
         {tab === 'goals' && <GoalsTab />}
         {tab === 'grades' && <GradesTab subjects={subjects} onSubjectsChange={loadSubjects} />}
@@ -233,6 +271,124 @@ export default function Study() {
         {tab === 'ai-tools' && <AiToolsTab />}
       </div>
     </>
+  );
+}
+
+// ================================ Today =================================
+// "Today Mode" -- moved here from Home.jsx (was the .today-card between the
+// hero card and the stats row there). Same behaviour: a short due-today
+// checklist plus the single next-upcoming task, fetched client-side from
+// the active task list rather than a dedicated backend filter.
+
+function TodayTab() {
+  const navigate = useNavigate();
+  const [now] = useState(() => new Date());
+  const [todayTasks, setTodayTasks] = useState([]);
+  const [nextTask, setNextTask] = useState(null);
+  const [todayLoaded, setTodayLoaded] = useState(false);
+  const [activeFocusSession, setActiveFocusSession] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getTasks({ status: 'active' })
+      .then((tasks) => {
+        if (cancelled) return;
+        const due = tasks.filter((t) => isSameLocalDay(t.due_date, now));
+        const upcoming = tasks
+          .filter((t) => isAfterLocalDay(t.due_date, now))
+          .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        setTodayTasks(due);
+        setNextTask(upcoming[0] || null);
+        setTodayLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setTodayLoaded(true);
+      });
+    api
+      .getActiveFocusSession()
+      .then((session) => {
+        if (!cancelled) setActiveFocusSession(session || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [now]);
+
+  function handleTodayCheckOff(id) {
+    setTodayTasks((prev) => prev.filter((t) => t.id !== id));
+    api.updateTask(id, { status: 'done' }).catch(() => {
+      // Best effort -- if this fails the task simply reappears next visit.
+    });
+  }
+
+  function handleTodaySkip(id) {
+    setTodayTasks((prev) => prev.filter((t) => t.id !== id));
+    api.rescheduleTaskTomorrow(id).catch(() => {
+      // Best effort -- same as above.
+    });
+  }
+
+  function handleStartFocus() {
+    const topTaskId = todayTasks[0]?.id;
+    navigate(topTaskId ? `/focus?task=${topTaskId}` : '/focus');
+  }
+
+  function handleHelpMeFocus() {
+    navigate('/focus?emergency=1');
+  }
+
+  return (
+    <div className="today-card">
+      <p className="today-card-title">Today</p>
+
+      {todayLoaded && todayTasks.length === 0 && (
+        <p className="today-empty">
+          Nothing due today — a good day to get ahead, or just rest.
+        </p>
+      )}
+
+      {todayTasks.length > 0 && (
+        <div className="today-list">
+          {todayTasks.map((task) => (
+            <div className="today-item" key={task.id}>
+              <button
+                type="button"
+                className="today-item-check"
+                onClick={() => handleTodayCheckOff(task.id)}
+                aria-label={`Mark "${task.title}" done`}
+              >
+                ✓
+              </button>
+              <span className="today-item-title">{task.title}</span>
+              <button
+                type="button"
+                className="today-item-skip"
+                onClick={() => handleTodaySkip(task.id)}
+              >
+                skip → tomorrow
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {nextTask && (
+        <p className="today-next">
+          Next: <strong>{nextTask.title}</strong>
+        </p>
+      )}
+
+      <div className="today-actions">
+        <button type="button" className="btn btn-primary" onClick={handleStartFocus}>
+          {activeFocusSession ? 'Continue Session' : 'Start Focus'}
+        </button>
+        <button type="button" className="btn-quiet today-help-link" onClick={handleHelpMeFocus}>
+          Help me focus
+        </button>
+      </div>
+    </div>
   );
 }
 

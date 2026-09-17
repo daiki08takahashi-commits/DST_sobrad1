@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
+import sobradAvatar from '../assets/sobrad-avatar.jpg';
 
 const GREETING = { id: 'greeting', sender: 'sobrad', text: "Hello. I'm glad you're here. What's on your mind?" };
 
@@ -104,12 +105,20 @@ export default function ChatPanel() {
       </div>
       <div className="chat-thread" ref={threadRef}>
         {loaded &&
-          messages.map((m) => (
-            <div className={`chat-bubble in from-${m.sender === 'user' ? 'user' : 'sobrad'}`} key={m.id}>
-              <span className="chat-bubble-name">{m.sender === 'user' ? 'You' : 'Sõbrad'}</span>
-              <span>{m.text}</span>
-            </div>
-          ))}
+          messages.map((m) => {
+            const fromSobrad = m.sender !== 'user';
+            return (
+              <div className={`chat-bubble-row from-${fromSobrad ? 'sobrad' : 'user'}`} key={m.id}>
+                {fromSobrad && (
+                  <img className="chat-bubble-avatar" src={sobradAvatar} alt="" aria-hidden="true" />
+                )}
+                <div className={`chat-bubble in from-${fromSobrad ? 'sobrad' : 'user'}`}>
+                  <span className="chat-bubble-name">{fromSobrad ? 'Sõbrad' : 'You'}</span>
+                  <span>{m.text}</span>
+                </div>
+              </div>
+            );
+          })}
       </div>
       {error && (
         <p className="form-error" role="alert">

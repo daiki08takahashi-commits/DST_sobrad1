@@ -513,6 +513,16 @@ textarea:focus-visible {
 .topbar h2 {
   font-size: 19px;
 }
+/* Sõbrad's profile photo, Chat topbar only (see Topbar.jsx's optional
+   avatarSrc prop) -- same treatment as .chat-bubble-avatar. */
+.topbar-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 10px var(--shadow-soft);
+}
 .home-topbar {
   padding: 26px var(--gutter) 4px;
   display: flex;
@@ -1039,6 +1049,30 @@ textarea:focus-visible {
   flex-direction: column;
   gap: 12px;
 }
+/* Row wrapping each bubble -- carries the side alignment that used to live
+   on .chat-bubble's own align-self, now that Sõbrad's messages also need
+   room for the avatar sitting beside the bubble. */
+.chat-bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.chat-bubble-row.from-sobrad {
+  justify-content: flex-start;
+}
+.chat-bubble-row.from-user {
+  justify-content: flex-end;
+}
+/* Sõbrad's profile photo, shown beside incoming bubbles only -- same quiet
+   shadow language as .hero-card/.chat-bubble.from-sobrad, no harsh border. */
+.chat-bubble-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 10px var(--shadow-soft);
+}
 .chat-bubble {
   max-width: 82%;
   border-radius: 18px;
@@ -1070,13 +1104,11 @@ textarea:focus-visible {
   color: var(--ink);
 }
 .chat-bubble.from-sobrad {
-  align-self: flex-start;
   background: var(--card);
   border: 1px solid var(--card-border);
   box-shadow: 0 8px 18px var(--shadow-soft);
 }
 .chat-bubble.from-user {
-  align-self: flex-end;
   background: var(--primary);
 }
 .chat-bubble.from-user .chat-bubble-name {
@@ -2815,10 +2847,12 @@ body.focus-minimal .emergency-fab {
   display: none !important;
 }
 
-/* ================= HOME: TODAY MODE =================
-   Additive "Today" card between the hero card and the stats row (see
-   Home.jsx) -- the existing hero/stats/nav-cluster ring are all untouched.
-   Same card language as the rest of the app. */
+/* ================= STUDY: TODAY MODE =================
+   "Today" card -- Study's first tab (see TodayTab in Study.jsx). Used to
+   sit on Home between the hero card and the stats row; moved here so Home
+   stays just hero/stats/nav-cluster ring. Renders as the first thing below
+   .study-tabs, using .screen-inner's normal flex gap for spacing -- no
+   Home-specific positioning to unwind, so the rules below are unchanged. */
 .today-card {
   background: var(--card);
   border: 1px solid var(--card-border);

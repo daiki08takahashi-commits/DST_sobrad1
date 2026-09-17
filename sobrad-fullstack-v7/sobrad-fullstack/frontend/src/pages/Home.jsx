@@ -20,27 +20,10 @@ function greetingForHour(hour) {
   return 'Good evening';
 }
 
-// ---- Today Mode helpers -----------------------------------------------
-// Tasks carry an ISO due_date (or null). These compare by *calendar day*
-// in the viewer's local time, not by timestamp, since "due today" should
-// mean today regardless of what time of day the due_date happens to be.
-function startOfLocalDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function isSameLocalDay(isoString, ref) {
-  if (!isoString) return false;
-  const d = new Date(isoString);
-  if (Number.isNaN(d.getTime())) return false;
-  return startOfLocalDay(d).getTime() === startOfLocalDay(ref).getTime();
-}
-
-function isAfterLocalDay(isoString, ref) {
-  if (!isoString) return false;
-  const d = new Date(isoString);
-  if (Number.isNaN(d.getTime())) return false;
-  return startOfLocalDay(d).getTime() > startOfLocalDay(ref).getTime();
-}
+// Note: "Today Mode" (the today-due checklist + Start Focus/Help me focus
+// card) used to live here, between the hero card and the stats row. It's
+// moved to Study's new "Today" tab (see TodayTab in Study.jsx) so Home stays
+// just hero card + stats row + nav ring -- no card clutter mixed in.
 
 export default function Home() {
   const navigate = useNavigate();
@@ -48,15 +31,6 @@ export default function Home() {
   const [now] = useState(() => new Date());
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(false);
-
-  // "Today Mode" -- a short today checklist + the single next-upcoming
-  // task, additive alongside the existing hero/stats/ring below (see the
-  // .today-card JSX further down). Fetched client-side from the active
-  // task list rather than a dedicated backend filter, per the task brief.
-  const [todayTasks, setTodayTasks] = useState([]);
-  const [nextTask, setNextTask] = useState(null);
-  const [todayLoaded, setTodayLoaded] = useState(false);
-  const [activeFocusSession, setActiveFocusSession] = useState(null);
 
   const greeting = greetingForHour(now.getHours());
   const dateStr = now.toLocaleDateString('en-GB', {
@@ -80,57 +54,6 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getTasks({ status: 'active' })
-      .then((tasks) => {
-        if (cancelled) return;
-        const due = tasks.filter((t) => isSameLocalDay(t.due_date, now));
-        const upcoming = tasks
-          .filter((t) => isAfterLocalDay(t.due_date, now))
-          .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-        setTodayTasks(due);
-        setNextTask(upcoming[0] || null);
-        setTodayLoaded(true);
-      })
-      .catch(() => {
-        if (!cancelled) setTodayLoaded(true);
-      });
-    api
-      .getActiveFocusSession()
-      .then((session) => {
-        if (!cancelled) setActiveFocusSession(session || null);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [now]);
-
-  function handleTodayCheckOff(id) {
-    setTodayTasks((prev) => prev.filter((t) => t.id !== id));
-    api.updateTask(id, { status: 'done' }).catch(() => {
-      // Best effort -- if this fails the task simply reappears next visit.
-    });
-  }
-
-  function handleTodaySkip(id) {
-    setTodayTasks((prev) => prev.filter((t) => t.id !== id));
-    api.rescheduleTaskTomorrow(id).catch(() => {
-      // Best effort -- same as above.
-    });
-  }
-
-  function handleStartFocus() {
-    const topTaskId = todayTasks[0]?.id;
-    navigate(topTaskId ? `/focus?task=${topTaskId}` : '/focus');
-  }
-
-  function handleHelpMeFocus() {
-    navigate('/focus?emergency=1');
-  }
-
   return (
     <>
       <div className="home-topbar">
@@ -147,58 +70,6 @@ export default function Home() {
         <div className="hero-card">
           <p className="hero-date">{dateStr}</p>
           <p className="hero-line">However today feels, you&rsquo;re welcome here.</p>
-        </div>
-
-        {/* "Today Mode" -- additive, sits between the hero card and the
-            existing stats row. Does not replace or restructure either. */}
-        <div className="today-card">
-          <p className="today-card-title">Today</p>
-
-          {todayLoaded && todayTasks.length === 0 && (
-            <p className="today-empty">
-              Nothing due today — a good day to get ahead, or just rest.
-            </p>
-          )}
-
-          {todayTasks.length > 0 && (
-            <div className="today-list">
-              {todayTasks.map((task) => (
-                <div className="today-item" key={task.id}>
-                  <button
-                    type="button"
-                    className="today-item-check"
-                    onClick={() => handleTodayCheckOff(task.id)}
-                    aria-label={`Mark "${task.title}" done`}
-                  >
-                    ✓
-                  </button>
-                  <span className="today-item-title">{task.title}</span>
-                  <button
-                    type="button"
-                    className="today-item-skip"
-                    onClick={() => handleTodaySkip(task.id)}
-                  >
-                    skip → tomorrow
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {nextTask && (
-            <p className="today-next">
-              Next: <strong>{nextTask.title}</strong>
-            </p>
-          )}
-
-          <div className="today-actions">
-            <button type="button" className="btn btn-primary" onClick={handleStartFocus}>
-              {activeFocusSession ? 'Continue Session' : 'Start Focus'}
-            </button>
-            <button type="button" className="btn-quiet today-help-link" onClick={handleHelpMeFocus}>
-              Help me focus
-            </button>
-          </div>
         </div>
 
         <div className="stats-row">
