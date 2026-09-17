@@ -46,6 +46,16 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
     return pwd_context.verify(plain_password, password_hash)
 
 
+def normalize_security_answer(answer: str) -> str:
+    """Normalize a security-question answer before hashing/comparing it, so
+    trivial casing/whitespace differences (e.g. "Rex " vs "rex") don't break
+    a legitimate password reset. Uses the exact same hashing scheme as
+    passwords (hash_password/verify_password above) -- no second hashing
+    scheme is introduced for this.
+    """
+    return answer.strip().lower()
+
+
 def create_access_token(user_id: int) -> str:
     now = datetime.now(timezone.utc)
     payload = {

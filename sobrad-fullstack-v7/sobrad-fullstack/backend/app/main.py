@@ -23,7 +23,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.database import Base, engine
-from app.routers import auth, breathing, chat, journal, mood, stats, study
+from app.routers import ai_tools, auth, breathing, chat, focus, journal, mood, review, settings, stats, study, tasks
 
 # Create tables on startup if they don't already exist. sobrad.db is created
 # automatically in the working directory on first run.
@@ -44,6 +44,21 @@ with engine.connect() as _conn:
             text("ALTER TABLE users ADD COLUMN passing_threshold FLOAT NOT NULL DEFAULT 70.0")
         )
         _conn.commit()
+    # Password reset (security question) + accessibility settings columns,
+    # added after the initial release -- same rationale as passing_threshold
+    # above.
+    _new_user_columns = {
+        "security_question": "VARCHAR",
+        "security_answer_hash": "VARCHAR",
+        "reduce_animations": "BOOLEAN NOT NULL DEFAULT 0",
+        "low_stimulation_mode": "BOOLEAN NOT NULL DEFAULT 0",
+        "high_contrast": "BOOLEAN NOT NULL DEFAULT 0",
+        "sound_enabled": "BOOLEAN NOT NULL DEFAULT 1",
+    }
+    for _col_name, _col_ddl in _new_user_columns.items():
+        if _col_name not in _existing_user_cols:
+            _conn.execute(text(f"ALTER TABLE users ADD COLUMN {_col_name} {_col_ddl}"))
+            _conn.commit()
 
 app = FastAPI(
     title="SOBRAD API",
@@ -78,6 +93,18 @@ app.include_router(breathing.router)
 app.include_router(stats.router)
 app.include_router(chat.router)
 app.include_router(study.router)
+app.include_router(tasks.router)
+app.include_router(focus.router)
+# AI Weekly Review -- see routers/review.py's module docstring for the full
+# feature rationale (client's verbatim request + the no-scheduler / no
+# distraction-tracking adaptations made).
+app.include_router(review.router)
+app.include_router(settings.router)
+# AI Study Tools -- see routers/ai_tools.py's module docstring for the full
+# feature rationale (explain/quiz/flashcards/summarize/study-plan/
+# explain-mistake/study-technique, each an honest `available: false` when no
+# ANTHROPIC_API_KEY is configured or the AI call/parse fails).
+app.include_router(ai_tools.router)
 
 
 @app.get("/api/health", tags=["health"])

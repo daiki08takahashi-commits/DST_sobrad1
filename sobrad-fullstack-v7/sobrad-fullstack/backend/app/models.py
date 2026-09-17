@@ -1,7 +1,17 @@
 """SQLAlchemy ORM models for SOBRAD."""
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -24,6 +34,25 @@ class User(Base):
     # /api/study/analysis "needs focus" flag on the Study screen.
     passing_threshold = Column(Float, default=70.0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    # Password reset via security question (no email is collected by this
+    # app, so a link-based reset isn't possible). Both nullable: a user who
+    # never sets a question simply has no reset path available -- see
+    # GET /api/auth/security-question, which reports that gracefully rather
+    # than erroring. The answer is hashed with the exact same scheme as
+    # password_hash (see app.auth.hash_password) after being normalized
+    # (stripped + lowercased) so trivial casing/whitespace differences don't
+    # break a legitimate reset attempt.
+    security_question = Column(String, nullable=True)
+    security_answer_hash = Column(String, nullable=True)
+
+    # Accessibility / sensory settings -- see routers/settings.py. Kept on
+    # User directly (like passing_threshold above) rather than a separate
+    # table since it's a small, fixed set of per-user flags.
+    reduce_animations = Column(Boolean, default=False, nullable=False)
+    low_stimulation_mode = Column(Boolean, default=False, nullable=False)
+    high_contrast = Column(Boolean, default=False, nullable=False)
+    sound_enabled = Column(Boolean, default=True, nullable=False)
 
     journal_entries = relationship(
         "JournalEntry", back_populates="user", cascade="all, delete-orphan"
@@ -48,6 +77,15 @@ class User(Base):
     )
     study_events = relationship(
         "StudyEvent", back_populates="user", cascade="all, delete-orphan"
+    )
+    day_notes = relationship(
+        "DayNote", back_populates="user", cascade="all, delete-orphan"
+    )
+    tasks = relationship(
+        "Task", back_populates="user", cascade="all, delete-orphan"
+    )
+    focus_sessions = relationship(
+        "FocusSession", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -183,3 +221,108 @@ class StudyEvent(Base):
 
     user = relationship("User", back_populates="study_events")
     subject = relationship("Subject", back_populates="events")
+
+
+class DayNote(Base):
+    """Freeform notes on the calendar, separate from the structured
+    StudyEvent list -- one note per user per calendar date (upserted from
+    the frontend, never explicitly created/deleted as its own resource)."""
+
+    __tablename__ = "day_notes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_day_notes_user_date"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    text = Column(String, nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+    user = relationship("User", back_populates="day_notes")
+
+
+# ---------------------------------------------------------------------------
+# Tasks: to-do items with optional subject link, subtasks (self-referential
+# parent_task_id), cross-task dependencies, due dates, time tracking and
+# simple recurrence. See routers/tasks.py.
+# ---------------------------------------------------------------------------
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    # Simple comma-separated string (e.g. "School,Personal") -- no separate
+    # Tag table, per the feature scope.
+    tags = Column(String, nullable=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True, index=True)
+    # Self-referential: a task with a parent is a subtask of it. No ORM
+    # relationship is declared for this (subtasks/parent lookups are plain
+    # queries in routers/tasks.py) to keep delete/cascade behavior explicit
+    # and easy to follow rather than relying on adjacency-list relationship
+    # cascade config.
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    estimated_minutes = Column(Integer, nullable=True)
+    # Accumulated actual time spent, in minutes. Populated by completing a
+    # linked FocusSession (see routers/focus.py) and/or manual PATCHes;
+    # never overwritten wholesale by the focus-session flow, only added to.
+    actual_minutes = Column(Integer, nullable=True)
+    progress_percent = Column(Integer, default=0, nullable=False)  # 0-100
+    status = Column(String, default="active", nullable=False)  # active/done/archived
+    recurrence = Column(String, default="none", nullable=False)  # none/daily/weekly/custom
+    recurrence_interval_days = Column(Integer, nullable=True)  # used when recurrence="custom"
+    notes = Column(String, nullable=True)  # freeform text notes -- no file storage in this app
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="tasks")
+    subject = relationship("Subject")
+
+
+class TaskDependency(Base):
+    """Join table: `task_id` is blocked by `depends_on_task_id`."""
+
+    __tablename__ = "task_dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_id", "depends_on_task_id", name="uq_task_dependencies_pair"
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    depends_on_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Focus sessions: Pomodoro-style timer runs, optionally linked to a Task.
+# See routers/focus.py.
+# ---------------------------------------------------------------------------
+
+
+class FocusSession(Base):
+    __tablename__ = "focus_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True, index=True)
+    mode = Column(String, nullable=False)  # pomodoro_25_5/pomodoro_50_10/custom
+    planned_minutes = Column(Integer, nullable=False)
+    started_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    completed = Column(Boolean, default=False, nullable=False)
+    interrupted = Column(Boolean, default=False, nullable=False)
+
+    user = relationship("User", back_populates="focus_sessions")

@@ -157,6 +157,25 @@ export function MoonIcon(props) {
   );
 }
 
+export function FocusIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3v2.6M12 18.4V21M21 12h-2.6M5.6 12H3" />
+    </svg>
+  );
+}
+
+export function SettingsIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 3v3M12 18v3M21 12h-3M6 12H3M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1M18.4 18.4l-2.1-2.1M7.7 7.7 5.6 5.6" />
+    </svg>
+  );
+}
+
 export function PhoneIcon(props) {
   return (
     <svg {...base} strokeWidth="1.7" className="icon" {...props}>

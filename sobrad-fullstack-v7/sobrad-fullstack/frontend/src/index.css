@@ -457,6 +457,40 @@ textarea:focus-visible {
   margin-top: 6px;
 }
 
+/* ---- Password reset (security question) flow, inline on Login.jsx ---- */
+.login-forgot-link {
+  align-self: center;
+  margin-top: -6px;
+}
+.reset-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.reset-question {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: var(--radius-input);
+  padding: 13px 15px;
+  line-height: 1.5;
+}
+.reset-no-question {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.field-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted-2);
+  margin-top: -3px;
+}
+
 /* ================= TOPBAR (shared) ================= */
 .topbar {
   display: flex;
@@ -2439,4 +2473,1076 @@ textarea:focus-visible {
   height: 9px;
   border-radius: 50%;
   flex: none;
+}
+
+/* ================= ACCESSIBILITY / SENSORY-FRIENDLY SETTINGS =================
+   Applied as classes on <body> by SettingsContext.jsx (fetched once from
+   GET /api/settings/accessibility and kept in sync on every toggle), so
+   these are active app-wide, not just while Settings.jsx is mounted. This
+   is a manual, always-on override version of the existing
+   `@media (prefers-reduced-motion: reduce)` block above (see .insomnia-moon
+   / .breath-circle / .rotator there) for people who want the calmer
+   experience regardless of their OS setting. */
+
+/* ---- Reduce animations: mirrors the standard prefers-reduced-motion
+   pattern, just triggered manually instead of only by the OS media query. */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---- High contrast: stronger borders and text, subtle shadow-only
+   distinctions replaced with a visible edge. */
+body.high-contrast {
+  --card-border: rgba(10, 20, 28, 0.55);
+  --muted: rgba(10, 20, 28, 0.86);
+  --muted-2: rgba(10, 20, 28, 0.7);
+  --input-border: rgba(10, 20, 28, 0.6);
+}
+body.high-contrast .card,
+body.high-contrast .field input,
+body.high-contrast .field textarea,
+body.high-contrast .field select {
+  border-width: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  body.high-contrast:not([data-theme='light']) {
+    --card-border: rgba(242, 246, 249, 0.55);
+    --muted: rgba(242, 246, 249, 0.9);
+    --muted-2: rgba(242, 246, 249, 0.72);
+    --input-border: rgba(242, 246, 249, 0.55);
+  }
+}
+body.high-contrast[data-theme='dark'] {
+  --card-border: rgba(242, 246, 249, 0.55);
+  --muted: rgba(242, 246, 249, 0.9);
+  --muted-2: rgba(242, 246, 249, 0.72);
+  --input-border: rgba(242, 246, 249, 0.55);
+}
+
+/* ---- Low stimulation: flatten shadows, mute the hero card's glow, calm
+   down decorative colour, while keeping layout/readability intact. */
+body.low-stimulation .hero-card,
+body.low-stimulation .card,
+body.low-stimulation .btn-primary,
+body.low-stimulation .breathe-card,
+body.low-stimulation .insomnia-card,
+body.low-stimulation .study-goal-card,
+body.low-stimulation .journal-entry-card,
+body.low-stimulation .mood-card {
+  box-shadow: none !important;
+}
+body.low-stimulation .insomnia-moon.active {
+  animation: none !important;
+  filter: saturate(0.7) brightness(0.97);
+}
+body.low-stimulation .hero-card {
+  filter: saturate(0.75);
+}
+body.low-stimulation {
+  filter: saturate(0.92);
+}
+
+/* ================= SETTINGS PAGE ================= */
+.settings-section {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.settings-section + .settings-section {
+  margin-top: 18px;
+}
+.settings-section h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--ink);
+  margin: 0;
+}
+.settings-section-hint {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: -8px 0 0;
+  line-height: 1.5;
+}
+.settings-optional-hint {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted-2);
+  margin: -3px 0 0;
+}
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+}
+.settings-toggle-row + .settings-toggle-row {
+  border-top: 1px solid var(--card-border);
+  padding-top: 14px;
+}
+.settings-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-toggle-label {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.settings-toggle-desc {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Simple, accessible pill switch shared by every toggle on Settings. */
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 46px;
+  height: 27px;
+  flex: none;
+  border-radius: 999px;
+  border: 1.5px solid var(--card-border);
+  background: var(--input-bg);
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.switch .switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--muted-2);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.switch.on {
+  background: var(--highlight);
+  border-color: var(--highlight);
+}
+.switch.on .switch-knob {
+  transform: translateX(19px);
+  background: var(--highlight-ink);
+}
+.switch:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.settings-success-text {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--highlight-ink);
+  background: rgba(53, 199, 173, 0.16);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* ================= FOCUS (Focus Session Timer + Emergency Focus Mode) =====
+   Same card language as the rest of the app (var(--card)/--card-border,
+   --radius-card-ish rounding, shadow-soft) so the mode picker + running
+   card read as part of the family. The countdown ring reuses the
+   highlight/primary token pair the rest of the app already uses for
+   "active" state (nav-circle-primary, insomnia-moon) rather than
+   inventing a new visual language. */
+.focus-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 28px 22px 26px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 16px 32px var(--shadow-soft);
+  text-align: center;
+}
+.focus-task-note {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+}
+.focus-task-note strong {
+  color: var(--ink);
+}
+.focus-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.focus-mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.focus-mode-option.selected {
+  border-color: var(--highlight);
+  background: rgba(53, 199, 173, 0.1);
+}
+.focus-mode-label {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.focus-mode-blurb {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.focus-custom-field {
+  width: 100%;
+}
+.focus-emergency-link {
+  color: var(--danger);
+}
+.focus-status {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15.5px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+/* Countdown ring: two stacked SVG circles (a faint track + the progress arc,
+   drawn with stroke-dasharray/-dashoffset and rotated -90deg so it starts
+   at 12 o'clock and empties clockwise as time passes), with the mm:ss
+   readout centred on top via absolute positioning. */
+.focus-ring-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.focus-ring {
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1); /* draw the progress arc clockwise, not mirrored */
+}
+.focus-ring-track {
+  fill: none;
+  stroke: var(--card-border);
+  stroke-width: 10;
+}
+.focus-ring-progress {
+  fill: none;
+  stroke: var(--highlight);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear;
+}
+.focus-ring-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Emergency Focus Mode: a full-viewport, chrome-free view -- no Topbar, no
+   sidebar, no emergency FAB (see body.focus-minimal below, toggled by
+   Focus.jsx while this is showing). Just the countdown, the task if any,
+   and Stop. */
+.focus-minimal-view {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px var(--gutter);
+}
+.focus-minimal-eyebrow {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.focus-minimal-task {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--ink);
+  text-align: center;
+  max-width: 320px;
+}
+.focus-minimal-stop {
+  margin-top: 8px;
+}
+body.focus-minimal .app-sidebar {
+  display: none !important;
+}
+body.focus-minimal .emergency-fab {
+  display: none !important;
+}
+
+/* ================= HOME: TODAY MODE =================
+   Additive "Today" card between the hero card and the stats row (see
+   Home.jsx) -- the existing hero/stats/nav-cluster ring are all untouched.
+   Same card language as the rest of the app. */
+.today-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 20px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 12px 26px var(--shadow-soft);
+}
+.today-card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16.5px;
+  color: var(--ink);
+}
+.today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.today-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.today-item-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--card-border);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+.today-item-check:hover {
+  border-color: var(--highlight);
+}
+.today-item-title {
+  flex: 1 1 auto;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+}
+.today-item-skip {
+  flex: none;
+  background: transparent;
+  border: none;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 6px;
+}
+.today-item-skip:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.today-empty {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.today-next {
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.today-next strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+.today-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.today-actions .btn-primary {
+  flex: 1 1 auto;
+}
+.today-help-link {
+  color: var(--muted);
+}
+
+/* =====================================================================
+   Study: Tasks + Deadlines (Task Management / Deadline Tracker)
+   New, self-contained block -- reuses existing primitives (.field,
+   .btn/.btn-primary/.btn-outline/.btn-quiet, .study-view-tabs/-tab,
+   .study-goal-progress*, .mood-empty) wherever the visual need already
+   matches, and only adds new classes for what's genuinely new here.
+   ===================================================================== */
+
+.study-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.study-tasks-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.study-tasks-search,
+.study-tasks-tag-filter {
+  flex: 1 1 160px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: var(--radius-input);
+  padding: 11px 14px;
+}
+.study-tasks-search::placeholder,
+.study-tasks-tag-filter::placeholder {
+  color: var(--muted-2);
+}
+
+.study-task-form {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-task-progress-value {
+  color: var(--ink);
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.study-task-deps-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--card-border);
+  padding-top: 14px;
+}
+.study-task-dep-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.study-task-dep-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--ambient);
+  border-radius: 999px;
+  padding: 5px 6px 5px 11px;
+}
+.study-task-dep-chip button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.study-task-dep-add {
+  display: flex;
+  gap: 8px;
+}
+.study-task-dep-add select {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+
+.study-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.study-task-node {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.study-task-node-children {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 22px;
+  padding-left: 14px;
+  margin-top: 2px;
+  border-left: 2px solid var(--card-border);
+}
+.study-task-loading {
+  margin: 0;
+}
+
+.study-task-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-task-card.done .study-task-title {
+  text-decoration: line-through;
+}
+.study-task-card.done {
+  opacity: 0.72;
+}
+.study-task-card.archived {
+  opacity: 0.55;
+}
+.study-task-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.study-task-expand-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--ambient);
+  border: 1px solid var(--card-border);
+  color: var(--ink);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.study-task-expand-spacer {
+  flex: none;
+  width: 26px;
+}
+.study-task-check input {
+  margin-top: 4px;
+}
+.study-task-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.study-task-title {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.study-task-meta {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-task-desc {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.study-task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.study-task-tag {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--primary);
+  background: rgba(28, 126, 214, 0.1);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.study-task-blocked {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted-2);
+}
+.study-task-durations {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  border-top: 1px solid var(--card-border);
+  padding-top: 8px;
+}
+.study-task-actions .btn-quiet {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* ---- Deadlines ---- */
+.study-deadlines {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.study-deadline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.study-deadline-row {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-deadline-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.study-deadline-title {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.study-deadline-meta {
+  font-family: var(--font-label);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.study-deadline-suggestion {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+.study-deadline-badge {
+  flex: none;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+/* Neutral tier -- further out than the caution window. */
+.study-deadline-badge-later {
+  color: var(--muted);
+  background: var(--ambient);
+}
+/* Amber "soon" tier -- identical register to the Grades tab's own Caution
+   badge (rgba(245,166,35,...) at the same opacity), so "due within 3 days"
+   reads consistently with "below your passing score" elsewhere in Study. */
+.study-deadline-badge-soon {
+  color: #8a5a00;
+  background: rgba(245, 166, 35, 0.18);
+}
+.study-deadline-row.study-deadline-soon {
+  border-left-color: #f5a623;
+}
+:root[data-theme='dark'] .study-deadline-badge-soon {
+  color: #ffcf7a;
+  background: rgba(245, 166, 35, 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .study-deadline-badge-soon {
+    color: #ffcf7a;
+    background: rgba(245, 166, 35, 0.22);
+  }
+}
+/* Overdue tier -- a deeper burnt-orange, distinct from --danger, which the
+   palette notes at the top of this file reserve for Emergency only. Still
+   reads as more urgent than the amber "soon" tier next to it. */
+.study-deadline-badge-overdue {
+  color: #8a3200;
+  background: rgba(199, 90, 20, 0.2);
+}
+.study-deadline-row.study-deadline-overdue {
+  border-left-color: #c75a14;
+}
+:root[data-theme='dark'] .study-deadline-badge-overdue {
+  color: #ffb37a;
+  background: rgba(199, 90, 20, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .study-deadline-badge-overdue {
+    color: #ffb37a;
+    background: rgba(199, 90, 20, 0.28);
+  }
+}
+
+@media (min-width: 900px) {
+  .study-deadline-row {
+    align-items: center;
+  }
+}
+
+/* ================= AI WEEKLY REVIEW =================
+   Study page > Review tab (see ReviewTab in Study.jsx). Same card language
+   as .study-insights/.study-trend-section above (var(--card)/--card-border
+   rounding/shadow-soft) so it reads as part of the same family rather than a
+   bolted-on widget. All colors are design tokens so this stays legible in
+   both light and dark theme with no separate dark-mode overrides needed. */
+.study-review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.study-review-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.study-review-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.study-review-range {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+}
+.study-review-empty {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-review-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.study-review-stat-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-review-stat-label {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.study-review-stat-value {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.study-review-stat-value-small {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.study-review-stat-sub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--muted);
+}
+.study-review-mood-symbol {
+  color: var(--primary);
+}
+.study-review-recommendation {
+  background: var(--ambient);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.study-review-recommendation-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+@media (min-width: 640px) {
+  .study-review-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---- AI Study Tools (Study > AI Tools tab) --------------------------------
+   Explain / Quiz / Flashcards / Summarize / Study Plan / Explain a Mistake /
+   Study Technique -- one shared picker + form + result area. See
+   pages/Study.jsx's AiToolsTab and backend routers/ai_tools.py. */
+
+.study-ai-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.study-ai-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-ai-picker-btn {
+  border: none;
+  background: transparent;
+  border-radius: 11px;
+  padding: 7px 12px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.study-ai-picker-btn.active {
+  background: var(--ambient);
+  color: var(--highlight);
+  font-weight: 800;
+}
+
+.study-ai-blurb {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: -6px 0 0;
+}
+
+.study-ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.study-ai-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+.study-ai-ask-btn {
+  align-self: flex-start;
+}
+
+.study-ai-unavailable {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--ambient);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.study-ai-result {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+
+.study-ai-result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.study-ai-quiz-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.study-ai-quiz-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--card-border);
+}
+.study-ai-quiz-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.study-ai-quiz-question {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+.study-ai-quiz-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.study-ai-quiz-answer {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--highlight);
+}
+
+.study-ai-flashcard-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.study-ai-flashcard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 110px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--ambient);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.study-ai-flashcard.flipped {
+  background: var(--card);
+}
+.study-ai-flashcard-label {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--highlight);
+}
+.study-ai-flashcard-text {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  flex: 1;
+}
+.study-ai-flashcard-hint {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.study-ai-technique-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+@media (min-width: 640px) {
+  .study-ai-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+  .study-ai-form .field:has(textarea) {
+    grid-column: 1 / -1;
+  }
+  .study-ai-form .form-error,
+  .study-ai-ask-btn {
+    grid-column: 1 / -1;
+  }
 }
