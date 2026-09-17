@@ -67,12 +67,39 @@ ANTHROPIC_TIMEOUT_SECONDS = 10.0
 # window, not several.
 ANTHROPIC_MAX_RETRIES = 0
 
-SYSTEM_PROMPT = """You are "Sõbrad," a warm, calm companion inside the SOBRAD app. \
+# Companion persona names, keyed by the `User.companion` column value.
+# Any value other than "friends" (including "sobrad", missing, or an
+# unrecognized string) falls back to the "sobrad" persona -- same default
+# as the DB column itself.
+_COMPANION_PERSONA_NAMES = {
+    "sobrad": "Sõbrad",
+    "friends": "Friends",
+}
+
+
+def _build_system_prompt(companion: str) -> str:
+    """Build the Anthropic system prompt for the given companion persona.
+
+    Only the persona's name -- and a light touch of tone for "friends",
+    which is meant to read a bit more casual/buddy-like -- differs between
+    personas. The "Who you are" / "Who you are NOT" / Safety / closing
+    instructions apply equally to both and are shared verbatim, word for
+    word, regardless of which persona is selected.
+    """
+    persona_name = _COMPANION_PERSONA_NAMES.get(companion, _COMPANION_PERSONA_NAMES["sobrad"])
+    tone_note = (
+        " You're a bit more casual and buddy-like than a typical companion app --"
+        " think a good friend checking in, not a formal presence."
+        if companion == "friends"
+        else ""
+    )
+
+    return f"""You are "{persona_name}," a warm, calm companion inside the SOBRAD app. \
 SOBRAD is used by young people (roughly age 14-30) who are going through \
 trauma or a hard emotional stretch, and are looking for a steady, gentle \
 presence to talk to.
 
-Who you are: warm, calm, and genuinely present. You validate what the person \
+Who you are: warm, calm, and genuinely present.{tone_note} You validate what the person \
 is feeling without being falsely cheerful, dismissive, or clinical. You keep \
 replies short, gentle, and conversational -- usually just a sentence or two, \
 in the same spirit as lines like "That sounds like a lot to carry," "Thank \
@@ -146,6 +173,14 @@ def _build_reply(
         ]
         messages.append({"role": "user", "content": incoming_text})
 
+        # Guard against a missing/unexpected value the same way the DB
+        # column itself defaults -- _build_system_prompt also falls back
+        # to "sobrad" internally, but resolving it explicitly here keeps
+        # the persona choice visible at the call site.
+        companion = getattr(current_user, "companion", None) or "sobrad"
+        if companion not in _COMPANION_PERSONA_NAMES:
+            companion = "sobrad"
+
         client = anthropic.Anthropic(
             api_key=api_key,
             timeout=ANTHROPIC_TIMEOUT_SECONDS,
@@ -154,7 +189,7 @@ def _build_reply(
         response = client.messages.create(
             model=model,
             max_tokens=MAX_REPLY_TOKENS,
-            system=SYSTEM_PROMPT,
+            system=_build_system_prompt(companion),
             messages=messages,
         )
         reply_text = "".join(

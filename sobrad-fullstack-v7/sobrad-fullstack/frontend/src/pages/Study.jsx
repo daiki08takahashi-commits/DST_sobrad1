@@ -105,6 +105,27 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
+// ---- Week/Day time-grid helpers (CalendarTimeGrid below) --------------
+
+const DAY_HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function formatHourLabel(hour) {
+  const period = hour < 12 ? 'AM' : 'PM';
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12} ${period}`;
+}
+
+// Decorative "GMT-08"-style label for the time rail's top corner, matching
+// the viewer's own offset. Only the whole-hour part is shown (like Google
+// Calendar's own label) -- close enough for a decorative touch, not meant
+// to handle half-hour-offset timezones precisely.
+function gmtOffsetLabel() {
+  const offsetMin = -new Date().getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const hh = pad2(Math.floor(Math.abs(offsetMin) / 60));
+  return `GMT${sign}${hh}`;
+}
+
 // Whole-calendar-days between today and `dateLike` (ISO date or datetime
 // string), ignoring time-of-day -- 0 = today, positive = future, negative =
 // overdue. Shared by the Tasks tab's "Skip to tomorrow" eligibility check and
@@ -393,6 +414,133 @@ function TodayTab() {
 }
 
 // ============================== Calendar ==============================
+
+const STUDY_HOUR_ROW_HEIGHT = 52;
+
+// Shared Google-Calendar-style hour grid used by both Week view (7 day
+// columns) and Day view (1 wide column) -- a time-of-day rail down the
+// left, day headers across the top, all-day chips pinned above the hour
+// rows (this app's calendar events only ever carry a date, no time-of-day,
+// so they always render as all-day), and a live "now" line drawn on
+// whichever column is actually today.
+function CalendarTimeGrid({ days, eventsByDay, selectedKey, onSelectDay }) {
+  const [now, setNow] = useState(() => new Date());
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // On mount (i.e. whenever Week/Day view is switched into, or Day view's
+  // date changes since selectedKey is part of `days`), scroll the hour rail
+  // to somewhere useful -- near the current time if today is in view,
+  // otherwise a mid-morning default -- rather than dumping the viewer at
+  // midnight every time.
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const todayInView = days.some((d) => toDateKey(d) === todayKey());
+    const referenceHour = todayInView ? Math.max(0, now.getHours() - 2) : 7;
+    scrollRef.current.scrollTop = referenceHour * STUDY_HOUR_ROW_HEIGHT;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days.map((d) => toDateKey(d)).join(',')]);
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowPct = Math.min(100, Math.max(0, (nowMinutes / 1440) * 100));
+  const columnTemplate = `var(--study-rail-width, 56px) repeat(${days.length}, 1fr)`;
+  const todayKeyValue = todayKey();
+
+  function handleColumnKeyDown(e, date) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelectDay(date);
+    }
+  }
+
+  return (
+    <div className="study-timegrid-card" style={{ '--study-hour-row-height': `${STUDY_HOUR_ROW_HEIGHT}px` }}>
+      <div className="study-timegrid-headerrow" style={{ gridTemplateColumns: columnTemplate }}>
+        <div className="study-timegrid-corner">{gmtOffsetLabel()}</div>
+        {days.map((date) => {
+          const key = toDateKey(date);
+          const isToday = key === todayKeyValue;
+          const isSelected = key === selectedKey;
+          return (
+            <button
+              type="button"
+              key={key}
+              className={`study-timegrid-daycol-header${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
+              onClick={() => onSelectDay(date)}
+            >
+              <span className="study-timegrid-dow">{date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+              <span className="study-timegrid-daynum">{date.getDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="study-timegrid-alldayrow" style={{ gridTemplateColumns: columnTemplate }}>
+        <div className="study-timegrid-corner-spacer" />
+        {days.map((date) => {
+          const key = toDateKey(date);
+          const dayEvents = eventsByDay[key] || [];
+          return (
+            <div
+              className="study-timegrid-allday-col"
+              key={key}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectDay(date)}
+              onKeyDown={(e) => handleColumnKeyDown(e, date)}
+            >
+              {dayEvents.map((ev) => (
+                <span className={`study-allday-chip${ev.done ? ' done' : ''}`} key={ev.id} title={ev.title}>
+                  {ev.title}
+                </span>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="study-timegrid-scroll" ref={scrollRef}>
+        <div className="study-timegrid-body" style={{ gridTemplateColumns: columnTemplate }}>
+          <div className="study-timegrid-rail">
+            {DAY_HOURS.map((h) => (
+              <div className="study-timegrid-hour-label" key={h}>
+                {formatHourLabel(h)}
+              </div>
+            ))}
+          </div>
+          {days.map((date) => {
+            const key = toDateKey(date);
+            const isToday = key === todayKeyValue;
+            const isSelected = key === selectedKey;
+            return (
+              <div
+                className={`study-timegrid-daycol${isSelected ? ' selected' : ''}`}
+                key={key}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectDay(date)}
+                onKeyDown={(e) => handleColumnKeyDown(e, date)}
+              >
+                {DAY_HOURS.map((h) => (
+                  <div className="study-timegrid-hour-row" key={h} />
+                ))}
+                {isToday && (
+                  <div className="study-now-line" style={{ top: `${nowPct}%` }}>
+                    <span className="study-now-dot" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CalendarTab({ subjects }) {
   const showToast = useToast();
@@ -739,8 +887,8 @@ function CalendarTab({ subjects }) {
       )}
 
       {viewMode === 'week' && (
-        <div className="study-calendar-layout">
-          <div className="study-calendar-card">
+        <div className="study-day-view">
+          <div className="study-calendar-card study-timegrid-nav-card">
             <div className="study-cal-header">
               <button type="button" className="study-cal-nav" onClick={goPrevWeek} aria-label="Previous week">
                 ‹
@@ -757,34 +905,14 @@ function CalendarTab({ subjects }) {
                 ›
               </button>
             </div>
-
-            <div className="study-cal-weekdays">
-              {WEEKDAY_LABELS.map((w, i) => (
-                <span key={i}>{w}</span>
-              ))}
-            </div>
-
-            <div className="study-cal-grid study-week-grid">
-              {weekGrid.map((date, i) => {
-                const key = toDateKey(date);
-                const isToday = key === todayKey();
-                const isSelected = key === selectedKey;
-                const count = eventsByDay[key]?.length || 0;
-                return (
-                  <button
-                    type="button"
-                    key={i}
-                    className={`study-cal-cell study-week-cell${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
-                    onClick={() => selectDate(date)}
-                  >
-                    <span className="study-cal-daynum">{date.getDate()}</span>
-                    {count === 1 && <span className="study-cal-dot" />}
-                    {count > 1 && <span className="study-cal-count">{count}</span>}
-                  </button>
-                );
-              })}
-            </div>
           </div>
+
+          <CalendarTimeGrid
+            days={weekGrid}
+            eventsByDay={eventsByDay}
+            selectedKey={selectedKey}
+            onSelectDay={selectDate}
+          />
 
           <DayPanel {...dayPanelProps} />
         </div>
@@ -792,7 +920,7 @@ function CalendarTab({ subjects }) {
 
       {viewMode === 'day' && (
         <div className="study-day-view">
-          <div className="study-calendar-card study-day-nav-card">
+          <div className="study-calendar-card study-timegrid-nav-card">
             <div className="study-cal-header">
               <button type="button" className="study-cal-nav" onClick={goPrevDay} aria-label="Previous day">
                 ‹
@@ -808,6 +936,13 @@ function CalendarTab({ subjects }) {
               </button>
             </div>
           </div>
+
+          <CalendarTimeGrid
+            days={[parseDateKey(selectedKey)]}
+            eventsByDay={eventsByDay}
+            selectedKey={selectedKey}
+            onSelectDay={selectDate}
+          />
 
           <DayPanel {...dayPanelProps} large />
         </div>

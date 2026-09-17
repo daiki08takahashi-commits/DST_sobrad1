@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
-import sobradAvatar from '../assets/sobrad-avatar.jpg';
-
-const GREETING = { id: 'greeting', sender: 'sobrad', text: "Hello. I'm glad you're here. What's on your mind?" };
+import { useSettings } from '../SettingsContext.jsx';
+import { getCompanion } from '../companions.js';
 
 // Shared chat thread + composer, used as-is by the dedicated Chat screen and
 // by Home (which renders this instead of its old tile grid on desktop, see
@@ -12,6 +11,14 @@ const GREETING = { id: 'greeting', sender: 'sobrad', text: "Hello. I'm glad you'
 // no Topbar here, that stays specific to whichever page renders this.
 export default function ChatPanel() {
   const showToast = useToast();
+  const { settings } = useSettings();
+  const companion = getCompanion(settings.companion);
+  // `messages` only ever holds real, persisted history -- an empty array
+  // means "no history yet", and the greeting is layered on at render time
+  // below (from `displayMessages`) rather than stored in state. That way
+  // the greeting always reflects the *current* companion choice, even if
+  // the accessibility-settings fetch (SettingsContext) resolves after this
+  // history fetch does.
   const [messages, setMessages] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState('');
@@ -27,11 +34,10 @@ export default function ChatPanel() {
       .getChatHistory()
       .then((data) => {
         if (cancelled) return;
-        const history = Array.isArray(data) ? data : [];
-        setMessages(history.length ? history : [GREETING]);
+        setMessages(Array.isArray(data) ? data : []);
       })
       .catch(() => {
-        if (!cancelled) setMessages([GREETING]);
+        if (!cancelled) setMessages([]);
       })
       .finally(() => {
         if (!cancelled) setLoaded(true);
@@ -41,10 +47,19 @@ export default function ChatPanel() {
     };
   }, []);
 
+  const displayMessages = messages.length
+    ? messages
+    : [{ id: 'greeting', sender: 'sobrad', text: companion.greeting }];
+
   useEffect(() => {
     if (threadRef.current) {
       threadRef.current.scrollTop = threadRef.current.scrollHeight;
     }
+    // Only real history changes (new message, load, clear) need a
+    // scroll-to-bottom -- `displayMessages` is recomputed every render
+    // (it layers the greeting on top of `messages`), so depending on it
+    // directly would re-run this on every render instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   async function handleSend() {
@@ -74,7 +89,7 @@ export default function ChatPanel() {
     setClearing(true);
     try {
       await api.clearChatHistory();
-      setMessages([GREETING]);
+      setMessages([]);
       setConfirmingClear(false);
       showToast('Conversation cleared.');
     } catch (err) {
@@ -105,15 +120,15 @@ export default function ChatPanel() {
       </div>
       <div className="chat-thread" ref={threadRef}>
         {loaded &&
-          messages.map((m) => {
+          displayMessages.map((m) => {
             const fromSobrad = m.sender !== 'user';
             return (
               <div className={`chat-bubble-row from-${fromSobrad ? 'sobrad' : 'user'}`} key={m.id}>
                 {fromSobrad && (
-                  <img className="chat-bubble-avatar" src={sobradAvatar} alt="" aria-hidden="true" />
+                  <img className="chat-bubble-avatar" src={companion.avatar} alt="" aria-hidden="true" />
                 )}
                 <div className={`chat-bubble in from-${fromSobrad ? 'sobrad' : 'user'}`}>
-                  <span className="chat-bubble-name">{fromSobrad ? 'Sõbrad' : 'You'}</span>
+                  <span className="chat-bubble-name">{fromSobrad ? companion.name : 'You'}</span>
                   <span>{m.text}</span>
                 </div>
               </div>

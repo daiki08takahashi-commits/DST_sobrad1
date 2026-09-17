@@ -1513,38 +1513,16 @@ textarea:focus-visible {
   background: var(--highlight-ink);
 }
 
-/* ---- Calendar: week view ---- */
-/* .study-week-grid reuses .study-cal-grid's 7-column layout as-is (it's
-   already a single row for 7 cells) -- just a taller cell since there's no
-   surrounding grid of other weeks competing for vertical space. */
-.study-week-cell {
-  aspect-ratio: auto;
-  height: 56px;
-}
-.study-cal-count {
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  border-radius: 8px;
-  background: var(--primary);
-  color: var(--primary-ink);
-  font-size: 9.5px;
-  font-weight: 700;
-  line-height: 15px;
-  text-align: center;
-}
-.study-cal-cell.selected .study-cal-count {
-  background: var(--highlight-ink);
-  color: var(--highlight);
-}
-
-/* ---- Calendar: day view ---- */
+/* ---- Calendar: week/day shared nav row + time grid ----
+   Week and Day view now both use the same Google-Calendar-style time grid
+   (CalendarTimeGrid in Study.jsx, styled below) with just a different
+   number of day columns, so they share this nav-row wrapper too. */
 .study-day-view {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.study-day-nav-card {
+.study-timegrid-nav-card {
   padding: 14px 16px;
 }
 /* The day view's panel is the only content on screen, so give it a bit
@@ -1556,6 +1534,189 @@ textarea:focus-visible {
 }
 .study-day-panel-large .study-day-panel-head .eyebrow {
   font-size: 13px;
+}
+
+/* ---- Calendar: week/day time grid ----
+   A vertical time-of-day rail on the left (full 24h, scrollable), day
+   columns across the top with an all-day chip strip above the hour rows
+   (this app's events only ever carry a date, never a time-of-day, so they
+   always render there), and a live "now" line on whichever column is
+   actually today. Shared as-is between Week (7 columns) and Day (1 wide
+   column) via the `days` prop on CalendarTimeGrid. */
+.study-timegrid-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 12px 24px var(--shadow-soft);
+}
+.study-timegrid-headerrow,
+.study-timegrid-alldayrow,
+.study-timegrid-body {
+  display: grid;
+}
+.study-timegrid-corner {
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted-2);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+}
+.study-timegrid-daycol-header {
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 10px;
+  font-family: var(--font-label);
+  color: var(--ink);
+  border-bottom: 1px solid var(--card-border);
+}
+.study-timegrid-dow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+.study-timegrid-daynum {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.study-timegrid-daycol-header.today .study-timegrid-daynum {
+  color: var(--primary);
+}
+.study-timegrid-daycol-header.selected .study-timegrid-daynum {
+  background: var(--highlight);
+  color: var(--highlight-ink);
+}
+
+.study-timegrid-alldayrow {
+  min-height: 28px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 6px;
+}
+.study-timegrid-allday-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 5px 0;
+  cursor: pointer;
+  border-left: 1px solid var(--card-border);
+}
+.study-timegrid-allday-col:first-child {
+  border-left: none;
+}
+.study-allday-chip {
+  background: var(--primary);
+  color: var(--primary-ink);
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.study-allday-chip.done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.study-timegrid-scroll {
+  max-height: 440px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.study-timegrid-rail {
+  display: flex;
+  flex-direction: column;
+}
+.study-timegrid-hour-label {
+  height: var(--study-hour-row-height, 52px);
+  font-family: var(--font-label);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted-2);
+  text-align: right;
+  padding-right: 8px;
+  transform: translateY(-7px);
+}
+.study-timegrid-hour-label:first-child {
+  transform: none;
+}
+.study-timegrid-daycol {
+  position: relative;
+  border-left: 1px solid var(--card-border);
+  cursor: pointer;
+}
+.study-timegrid-daycol:first-child {
+  border-left: none;
+}
+.study-timegrid-daycol.selected {
+  background: rgba(53, 199, 173, 0.08);
+}
+:root[data-theme='dark'] .study-timegrid-daycol.selected {
+  background: rgba(138, 208, 195, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .study-timegrid-daycol.selected {
+    background: rgba(138, 208, 195, 0.12);
+  }
+}
+.study-timegrid-hour-row {
+  height: var(--study-hour-row-height, 52px);
+  border-top: 1px solid var(--card-border);
+}
+.study-timegrid-hour-row:first-child {
+  border-top: none;
+}
+/* "Now" indicator -- a small live-clock red, distinct from --danger (which
+   the palette note at the top of this file reserves for Emergency only). */
+.study-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #e2554a;
+  z-index: 2;
+  pointer-events: none;
+}
+.study-now-dot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e2554a;
+}
+:root[data-theme='dark'] .study-now-line {
+  border-top-color: #ff8a7a;
+}
+:root[data-theme='dark'] .study-now-dot {
+  background: #ff8a7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .study-now-line {
+    border-top-color: #ff8a7a;
+  }
+  :root:not([data-theme='light']) .study-now-dot {
+    background: #ff8a7a;
+  }
 }
 
 .study-day-panel-head {
@@ -2361,15 +2522,32 @@ textarea:focus-visible {
     font-size: 16px;
   }
 
-  /* Week view's 7-cell row: the grid gap and cell aspect-ratio that work
-     fine at desktop widths would push the row wider than a 390px viewport,
-     causing horizontal scroll. Tighten the gap and let cells go a bit
-     shorter/narrower instead. */
-  .study-cal-grid.study-week-grid {
-    gap: 3px;
+  /* Week/Day time grid: the desktop rail width and hour-row height would
+     push a 7-column week narrower than useful (or just waste vertical
+     space in a shorter viewport) on a 390px phone. Narrow the rail and
+     shorten the rows -- both are read through CSS vars (set inline per
+     instance in Study.jsx), so `!important` is needed here to win over
+     that inline style. */
+  .study-timegrid-card {
+    --study-rail-width: 40px !important;
+    --study-hour-row-height: 44px !important;
+    padding: 12px;
   }
-  .study-week-cell {
-    height: 46px;
+  .study-timegrid-dow {
+    font-size: 9.5px;
+  }
+  .study-timegrid-daynum {
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+  }
+  .study-timegrid-hour-label {
+    font-size: 9.5px;
+    padding-right: 5px;
+  }
+  .study-allday-chip {
+    font-size: 10px;
+    padding: 2px 6px;
   }
   .study-cal-daynum {
     font-size: 11.5px;
@@ -2687,6 +2865,51 @@ body.low-stimulation {
   border: 1px solid var(--card-border);
   border-radius: 10px;
   padding: 10px 12px;
+}
+
+/* Companion picker (see CompanionSection in Settings.jsx) -- two selectable
+   cards, one per persona in companions.js. Same card language as the rest
+   of Settings (--card-border/--radius-card-ish), with a highlight border +
+   tint on whichever one is currently selected. */
+.settings-companion-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.settings-companion-option {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.settings-companion-option.selected {
+  border-color: var(--highlight);
+  background: rgba(53, 199, 173, 0.12);
+}
+.settings-companion-option:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.settings-companion-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 6px 14px var(--shadow-soft);
+}
+.settings-companion-name {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
 }
 
 /* ================= FOCUS (Focus Session Timer + Emergency Focus Mode) =====

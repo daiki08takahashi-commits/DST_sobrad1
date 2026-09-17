@@ -14,6 +14,7 @@ const DEFAULTS = {
   low_stimulation_mode: false,
   high_contrast: false,
   sound_enabled: true,
+  companion: 'sobrad',
 };
 
 const BODY_CLASS_MAP = {

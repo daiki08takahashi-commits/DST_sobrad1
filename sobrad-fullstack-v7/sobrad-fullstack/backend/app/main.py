@@ -54,6 +54,7 @@ with engine.connect() as _conn:
         "low_stimulation_mode": "BOOLEAN NOT NULL DEFAULT 0",
         "high_contrast": "BOOLEAN NOT NULL DEFAULT 0",
         "sound_enabled": "BOOLEAN NOT NULL DEFAULT 1",
+        "companion": "VARCHAR NOT NULL DEFAULT 'sobrad'",
     }
     for _col_name, _col_ddl in _new_user_columns.items():
         if _col_name not in _existing_user_cols:

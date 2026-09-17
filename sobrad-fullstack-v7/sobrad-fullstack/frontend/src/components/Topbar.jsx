@@ -3,8 +3,9 @@ import { BackIcon } from './icons.jsx';
 
 // Shared back-arrow + title header used by every non-Home authenticated
 // screen. Always returns to Home, matching the original prototype's nav.
-// `avatarSrc` is optional -- only Chat passes it, for Sõbrad's profile
-// photo next to the title; every other screen renders exactly as before.
+// `avatarSrc` is optional -- only Chat passes it, for the active companion's
+// (Sõbrad or Friends -- see companions.js) profile photo next to the title;
+// every other screen renders exactly as before.
 export default function Topbar({ title, avatarSrc }) {
   const navigate = useNavigate();
   return (

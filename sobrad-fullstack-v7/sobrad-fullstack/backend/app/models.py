@@ -54,6 +54,13 @@ class User(Base):
     high_contrast = Column(Boolean, default=False, nullable=False)
     sound_enabled = Column(Boolean, default=True, nullable=False)
 
+    # Which companion persona (avatar + display name + greeting) is shown
+    # throughout the chat UI -- 'sobrad' (default, the original prototype
+    # behavior) or 'friends' (the male-presenting, more casual alternative).
+    # Presentation only -- does not affect the AI reply/system prompt in
+    # routers/chat.py. See routers/settings.py for the validated values.
+    companion = Column(String, default="sobrad", nullable=False)
+
     journal_entries = relationship(
         "JournalEntry", back_populates="user", cascade="all, delete-orphan"
     )
