@@ -1,14 +1,14 @@
 import sobradAvatar from './assets/sobrad-avatar.jpg';
 import friendsAvatar from './assets/friends-avatar.jpg';
 
-// The two companion personas a user can pick between in Settings (see
-// SettingsContext.jsx's `companion` field, and pages/Settings.jsx's
-// "Companion" section) -- each just an avatar image, display name and
-// opening chat greeting. 'sobrad' is the original, calmer persona and stays
-// the default; 'friends' is a more casual, buddy-like alternative. This is
-// presentation only -- it doesn't touch the AI reply itself (see
-// backend/app/routers/chat.py's SYSTEM_PROMPT, which still speaks as
-// "Sõbrad" regardless of which persona the UI is showing).
+// The two companions, each with its own fully separate chat thread (see
+// pages/Chat.jsx's companion list -> thread router, and api.js's
+// companion-scoped getChatHistory/sendChatMessage/clearChatHistory) --
+// each just an avatar image, display name and opening chat greeting.
+// 'sobrad' is the original, calmer persona; 'friends' is a more casual,
+// buddy-like alternative. This is presentation only -- it doesn't touch the
+// AI reply itself (see backend/app/routers/chat.py's SYSTEM_PROMPT, which
+// still speaks as "Sõbrad" regardless of which persona the UI is showing).
 export const COMPANIONS = {
   sobrad: {
     key: 'sobrad',

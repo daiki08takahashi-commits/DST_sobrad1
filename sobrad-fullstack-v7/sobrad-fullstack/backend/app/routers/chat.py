@@ -3,7 +3,7 @@ import os
 import random
 from typing import List
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -14,6 +14,23 @@ from app.schemas import ChatClearOut, ChatExchangeOut, ChatMessageCreate, ChatMe
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 logger = logging.getLogger(__name__)
+
+# The only valid companion threads -- each is now its own independent
+# conversation with its own history (see models.py's ChatMessage.companion).
+# An invalid value is a 400, not a silent fallback to "sobrad" -- unlike
+# settings.py's PATCH /api/settings/accessibility (which is phasing out
+# User.companion as a chat-flow input), the frontend here always knows
+# exactly which thread it's operating on, so a wrong value indicates a real
+# bug worth surfacing rather than papering over.
+VALID_COMPANIONS = ("sobrad", "friends")
+
+
+def _validate_companion(companion: str) -> None:
+    if companion not in VALID_COMPANIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"companion must be one of {VALID_COMPANIONS}",
+        )
 
 # Fixed, calm, generic, non-clinical companion replies. Used whenever real
 # AI replies aren't available -- no ANTHROPIC_API_KEY configured, or the
@@ -125,7 +142,11 @@ Outside of that situation, just be present: brief, warm, and human."""
 
 
 def _build_reply(
-    current_user: User, incoming_text: str, db: Session, exclude_message_id: int
+    current_user: User,
+    incoming_text: str,
+    db: Session,
+    exclude_message_id: int,
+    companion: str,
 ) -> str:
     """Return the assistant's reply text for a new incoming message.
 
@@ -134,6 +155,11 @@ def _build_reply(
     missing key, network error, auth error, rate limit, timeout, unexpected
     response shape, etc. The fallback is intentionally indistinguishable, to
     the user, from today's normal (no-AI) behavior.
+
+    `companion` is the companion thread from the request payload (already
+    validated by the caller) -- Sõbrad and Friends are separate
+    conversations with independent histories, so both the history query
+    below and the system prompt are scoped to this companion only.
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -150,11 +176,14 @@ def _build_reply(
         # Same query as get_chat_history, minus the new incoming message
         # itself (it's already been persisted as a ChatMessage row by the
         # time this runs, so it must be excluded here -- it's added back
-        # explicitly, as the latest turn, below).
+        # explicitly, as the latest turn, below). Scoped to this companion's
+        # thread only, so Sõbrad's and Friends' conversations never leak
+        # into each other's context window.
         history = (
             db.query(ChatMessage)
             .filter(
                 ChatMessage.user_id == current_user.id,
+                ChatMessage.companion == companion,
                 ChatMessage.id != exclude_message_id,
             )
             .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
@@ -172,14 +201,6 @@ def _build_reply(
             for m in recent_history
         ]
         messages.append({"role": "user", "content": incoming_text})
-
-        # Guard against a missing/unexpected value the same way the DB
-        # column itself defaults -- _build_system_prompt also falls back
-        # to "sobrad" internally, but resolving it explicitly here keeps
-        # the persona choice visible at the call site.
-        companion = getattr(current_user, "companion", None) or "sobrad"
-        if companion not in _COMPANION_PERSONA_NAMES:
-            companion = "sobrad"
 
         client = anthropic.Anthropic(
             api_key=api_key,
@@ -216,15 +237,27 @@ def send_chat_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _validate_companion(payload.companion)
+
     user_message = ChatMessage(
-        user_id=current_user.id, sender="user", text=payload.message
+        user_id=current_user.id,
+        sender="user",
+        text=payload.message,
+        companion=payload.companion,
     )
     db.add(user_message)
     db.commit()
     db.refresh(user_message)
 
-    reply_text = _build_reply(current_user, payload.message, db, user_message.id)
-    reply = ChatMessage(user_id=current_user.id, sender="sobrad", text=reply_text)
+    reply_text = _build_reply(
+        current_user, payload.message, db, user_message.id, payload.companion
+    )
+    reply = ChatMessage(
+        user_id=current_user.id,
+        sender="sobrad",
+        text=reply_text,
+        companion=payload.companion,
+    )
     db.add(reply)
     db.commit()
     db.refresh(reply)
@@ -244,12 +277,18 @@ def send_chat_message(
 
 @router.get("", response_model=List[ChatMessageOut])
 def get_chat_history(
+    companion: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _validate_companion(companion)
+
     messages = (
         db.query(ChatMessage)
-        .filter(ChatMessage.user_id == current_user.id)
+        .filter(
+            ChatMessage.user_id == current_user.id,
+            ChatMessage.companion == companion,
+        )
         .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
         .all()
     )
@@ -258,14 +297,20 @@ def get_chat_history(
 
 @router.delete("", response_model=ChatClearOut)
 def clear_chat_history(
+    companion: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Permanent, whole-conversation delete -- this is the "start fresh" /
-    # "I don't want to remember this" control on the Chat screen, not a
-    # per-message delete, so it's a single bulk delete rather than a loop.
-    db.query(ChatMessage).filter(ChatMessage.user_id == current_user.id).delete(
-        synchronize_session=False
-    )
+    _validate_companion(companion)
+
+    # Permanent, single-thread delete -- this is the "start fresh" /
+    # "I don't want to remember this" control on the Chat screen, scoped to
+    # just the companion thread that was open, not a per-message delete, so
+    # it's a single bulk delete (filtered to this companion) rather than a
+    # loop.
+    db.query(ChatMessage).filter(
+        ChatMessage.user_id == current_user.id,
+        ChatMessage.companion == companion,
+    ).delete(synchronize_session=False)
     db.commit()
     return ChatClearOut(deleted=True)

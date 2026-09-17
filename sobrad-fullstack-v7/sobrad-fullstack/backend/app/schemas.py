@@ -156,6 +156,11 @@ class StatsOut(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     message: str
+    # Which companion thread this message belongs to -- 'sobrad' or
+    # 'friends'. Required: the frontend always knows exactly which
+    # conversation it's operating on, so this is never inferred from the
+    # user's stored persona default (see routers/chat.py).
+    companion: str
 
     @field_validator("message")
     @classmethod

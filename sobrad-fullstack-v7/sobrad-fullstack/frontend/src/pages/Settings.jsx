@@ -4,7 +4,6 @@ import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useSettings } from '../SettingsContext.jsx';
-import { COMPANIONS } from '../companions.js';
 
 // A small labelled pill switch, shared by all four accessibility toggles
 // below. Renders as a real <button role="switch"> so it's keyboard- and
@@ -225,56 +224,6 @@ function SecurityQuestionSection() {
   );
 }
 
-// Lets the user pick which companion persona (avatar + display name +
-// chat greeting -- see companions.js) they want, alongside the
-// password/security-question/accessibility sections below. Same
-// "optimistic PATCH via SettingsContext" pattern as AccessibilitySection's
-// toggles, just choosing between two named options instead of on/off.
-function CompanionSection() {
-  const { settings, updateSettings } = useSettings();
-  const showToast = useToast();
-  const [pending, setPending] = useState(false);
-
-  const active = settings.companion || 'sobrad';
-
-  async function handlePick(key) {
-    if (key === active || pending) return;
-    setPending(true);
-    try {
-      await updateSettings({ companion: key });
-    } catch (err) {
-      showToast(err.message || "Couldn't save that setting. Please try again.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <section className="settings-section">
-      <h3>Companion</h3>
-      <p className="settings-section-hint">
-        Choose who you&rsquo;re chatting with. This changes their name, photo and greeting in Chat.
-      </p>
-      <div className="settings-companion-row" role="radiogroup" aria-label="Companion">
-        {Object.values(COMPANIONS).map((c) => (
-          <button
-            type="button"
-            key={c.key}
-            role="radio"
-            aria-checked={active === c.key}
-            className={`settings-companion-option${active === c.key ? ' selected' : ''}`}
-            disabled={pending}
-            onClick={() => handlePick(c.key)}
-          >
-            <img className="settings-companion-avatar" src={c.avatar} alt="" aria-hidden="true" />
-            <span className="settings-companion-name">{c.name}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function AccessibilitySection() {
   const { settings, updateSettings } = useSettings();
   const showToast = useToast();
@@ -348,7 +297,6 @@ export default function Settings() {
       <div className="screen-inner">
         <ChangePasswordSection />
         <SecurityQuestionSection />
-        <CompanionSection />
         <AccessibilitySection />
       </div>
     </>

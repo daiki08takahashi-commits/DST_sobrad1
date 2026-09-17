@@ -61,6 +61,20 @@ with engine.connect() as _conn:
             _conn.execute(text(f"ALTER TABLE users ADD COLUMN {_col_name} {_col_ddl}"))
             _conn.commit()
 
+    # chat_messages.companion -- added when Sõbrad/Friends became separate
+    # conversations with independent histories instead of one shared thread
+    # re-skinned by persona. Existing pre-migration rows default to
+    # 'sobrad', since that was this app's only/original persona historically
+    # (same rationale as the users.companion column above).
+    _existing_chat_message_cols = {
+        row[1] for row in _conn.execute(text("PRAGMA table_info(chat_messages)"))
+    }
+    if "companion" not in _existing_chat_message_cols:
+        _conn.execute(
+            text("ALTER TABLE chat_messages ADD COLUMN companion VARCHAR NOT NULL DEFAULT 'sobrad'")
+        )
+        _conn.commit()
+
 app = FastAPI(
     title="SOBRAD API",
     description="Backend for SOBRAD, a calm companion app by DST (Daiki Systems Tech).",

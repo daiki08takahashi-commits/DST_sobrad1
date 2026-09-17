@@ -137,6 +137,12 @@ class ChatMessage(Base):
     sender = Column(String, nullable=False)  # 'user' or 'sobrad'
     text = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    # Which companion thread this message belongs to -- 'sobrad' or
+    # 'friends'. Each companion is now its own independent conversation
+    # (separate history), not just a display re-skin of one shared thread --
+    # see routers/chat.py. Existing pre-migration rows default to 'sobrad',
+    # since that was this app's only/original persona historically.
+    companion = Column(String, nullable=False, default="sobrad")
 
     user = relationship("User", back_populates="chat_messages")
 

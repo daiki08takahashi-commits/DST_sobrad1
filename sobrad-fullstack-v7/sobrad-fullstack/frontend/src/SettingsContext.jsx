@@ -9,12 +9,16 @@ import { useAuth } from './AuthContext.jsx';
 
 const SettingsContext = createContext(null);
 
+// Note: the backend's accessibility-settings payload may still include a
+// `companion` field (User.companion) -- this frontend no longer reads or
+// writes it anywhere (companion choice now happens by opening a thread in
+// Chat, see pages/Chat.jsx, not as a standing preference), so it's simply
+// left out of DEFAULTS and never referenced below.
 const DEFAULTS = {
   reduce_animations: false,
   low_stimulation_mode: false,
   high_contrast: false,
   sound_enabled: true,
-  companion: 'sobrad',
 };
 
 const BODY_CLASS_MAP = {

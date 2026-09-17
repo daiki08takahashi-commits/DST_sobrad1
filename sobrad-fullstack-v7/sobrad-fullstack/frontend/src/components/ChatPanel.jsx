@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
-import { useSettings } from '../SettingsContext.jsx';
 import { getCompanion } from '../companions.js';
 
-// Shared chat thread + composer, used as-is by the dedicated Chat screen and
-// by Home (which renders this instead of its old tile grid on desktop, see
-// Home.jsx). Both call the same history/send API, so both are simply two
-// views onto one real conversation rather than separate chat features --
-// no Topbar here, that stays specific to whichever page renders this.
-export default function ChatPanel() {
+// Chat thread + composer for ONE companion's thread, rendered by Chat.jsx
+// once a row in its companion list has been opened. `companion` ('sobrad'
+// or 'friends' -- see companions.js) is a required prop, not read from a
+// global setting: each companion is now a fully separate conversation (see
+// api.js's getChatHistory/sendChatMessage/clearChatHistory, all scoped to
+// one companion thread), so this panel only ever knows about the one thread
+// it was opened into. No Topbar here, that stays specific to Chat.jsx.
+export default function ChatPanel({ companion: companionKey }) {
   const showToast = useToast();
-  const { settings } = useSettings();
-  const companion = getCompanion(settings.companion);
+  const companion = getCompanion(companionKey);
   // `messages` only ever holds real, persisted history -- an empty array
   // means "no history yet", and the greeting is layered on at render time
-  // below (from `displayMessages`) rather than stored in state. That way
-  // the greeting always reflects the *current* companion choice, even if
-  // the accessibility-settings fetch (SettingsContext) resolves after this
-  // history fetch does.
+  // below (from `displayMessages`) rather than stored in state.
   const [messages, setMessages] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState('');
@@ -30,8 +27,9 @@ export default function ChatPanel() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     api
-      .getChatHistory()
+      .getChatHistory(companion.key)
       .then((data) => {
         if (cancelled) return;
         setMessages(Array.isArray(data) ? data : []);
@@ -45,7 +43,11 @@ export default function ChatPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Re-fetch whenever the panel is pointed at a different companion --
+    // Chat.jsx unmounts/remounts this on companion switch today, but this
+    // guards against a future change that keeps it mounted instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companion.key]);
 
   const displayMessages = messages.length
     ? messages
@@ -68,7 +70,7 @@ export default function ChatPanel() {
     setSending(true);
     setError('');
     try {
-      const result = await api.sendChatMessage(text);
+      const result = await api.sendChatMessage(companion.key, text);
       setInput('');
       setMessages((prev) => [...prev, result.user_message, result.reply]);
     } catch (err) {
@@ -88,7 +90,7 @@ export default function ChatPanel() {
   async function handleClearConfirmed() {
     setClearing(true);
     try {
-      await api.clearChatHistory();
+      await api.clearChatHistory(companion.key);
       setMessages([]);
       setConfirmingClear(false);
       showToast('Conversation cleared.');

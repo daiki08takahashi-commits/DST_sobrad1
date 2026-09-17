@@ -184,17 +184,20 @@ export function createJournalEntry(text) {
 }
 
 // ---- chat -----------------------------------------------------------------
+// Each companion ('sobrad' | 'friends') now has its own fully separate
+// thread server-side (see companions.js) -- every chat call is scoped to
+// one companion, never the whole user.
 
-export function getChatHistory() {
-  return request('/chat');
+export function getChatHistory(companion) {
+  return request(`/chat?companion=${encodeURIComponent(companion)}`);
 }
 
-export function sendChatMessage(message) {
-  return request('/chat', { method: 'POST', body: { message } });
+export function sendChatMessage(companion, message) {
+  return request('/chat', { method: 'POST', body: { message, companion } });
 }
 
-export function clearChatHistory() {
-  return request('/chat', { method: 'DELETE' });
+export function clearChatHistory(companion) {
+  return request(`/chat?companion=${encodeURIComponent(companion)}`, { method: 'DELETE' });
 }
 
 // ---- mood -----------------------------------------------------------------
