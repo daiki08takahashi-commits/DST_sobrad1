@@ -516,12 +516,49 @@ def update_study_settings(
 # Analysis -- deterministic, server-side. No external AI call.
 # ---------------------------------------------------------------------------
 
+# Point difference (percentage points) between the earlier-half and later-
+# half averages below which a trend is called "steady" rather than
+# "improving"/"declining" -- small fluctuations shouldn't read as a trend.
+# Shared by the overall trend (get_insights, below) and each subject's own
+# trend (_subject_trend, right below) so both use the exact same threshold.
+TREND_STEADY_BAND = 2.0
+
+
+def _subject_trend(entries: List[Grade]) -> str:
+    """Per-subject trend, using the same earlier-half/later-half average-
+    difference logic (and the same TREND_STEADY_BAND) as the overall trend
+    computed in get_insights, but scoped to just this one subject's grades.
+
+    `entries` must already be sorted chronologically (date, then id) -- see
+    _subject_averages, which sorts before calling this.
+    """
+    n = len(entries)
+    if n < 2:
+        return "not_enough_data"
+    half = n // 2
+    earlier_half = entries[:half]
+    later_half = entries[half:]
+    earlier_avg = sum(e.score for e in earlier_half) / len(earlier_half)
+    later_avg = sum(e.score for e in later_half) / len(later_half)
+    point_diff = later_avg - earlier_avg
+    if point_diff > TREND_STEADY_BAND:
+        return "improving"
+    if point_diff < -TREND_STEADY_BAND:
+        return "declining"
+    return "steady"
+
 
 def _subject_averages(grades: List[Grade], threshold: float) -> List[SubjectAverage]:
-    """Group `grades` by subject and compute each subject's average, flagging
-    any subject whose average sits below `threshold`. Shared by both
-    /analysis and /insights so the two endpoints never disagree about what a
-    subject's average is.
+    """Group `grades` by subject and compute each subject's average and own
+    trend, flagging any subject whose average sits below `threshold`. Shared
+    by both /analysis and /insights so the two endpoints never disagree
+    about what a subject's average (or trend) is.
+
+    Note: /analysis's query has no explicit ORDER BY, so each subject's
+    entry list is sorted here (by date, then id) before computing anything
+    -- both the average (order doesn't matter for that) and the trend
+    (order very much does) need this to be correct regardless of which
+    caller's query happened to hand grades over in.
     """
     by_subject = {}
     for g in grades:
@@ -529,10 +566,12 @@ def _subject_averages(grades: List[Grade], threshold: float) -> List[SubjectAver
 
     rows = []
     for subject_id, entries in by_subject.items():
+        entries = sorted(entries, key=lambda e: (e.date, e.id))
         subject = entries[0].subject
         avg = sum(e.score for e in entries) / len(entries)
         avg = round(avg, 1)
         needs_focus = avg < threshold
+        trend = _subject_trend(entries)
         tip = None
         if needs_focus:
             tip = f"{subject.name}'s average is {avg}% — a bit of extra review here could help."
@@ -543,6 +582,7 @@ def _subject_averages(grades: List[Grade], threshold: float) -> List[SubjectAver
                 average=avg,
                 entry_count=len(entries),
                 needs_focus=needs_focus,
+                trend=trend,
                 tip=tip,
             )
         )
@@ -608,23 +648,25 @@ MAX_INSIGHTS_TOKENS = 220
 ANTHROPIC_TIMEOUT_SECONDS = 10.0
 ANTHROPIC_MAX_RETRIES = 0
 
-# Point difference (percentage points) between the earlier-half and later-
-# half averages below which the trend is called "steady" rather than
-# "improving"/"declining" -- small fluctuations shouldn't read as a trend.
-TREND_STEADY_BAND = 2.0
-
 INSIGHTS_SYSTEM_PROMPT = """You are writing a short study-progress note for a student inside the \
 SOBRAD app's Study page. You will be given a small set of precomputed \
 statistics (subject averages, entry counts, trend direction and point \
-change, passing threshold). Write 2-4 short sentences, warm and \
-encouraging but honest and non-hyped, narrating that trend in plain \
-English.
+change, passing threshold). Each subject in the stats also includes its \
+own trend label ("improving"/"steady"/"declining"/"not_enough_data"), \
+computed the same way as the overall trend but scoped to just that \
+subject. Write 2-4 short sentences, warm and encouraging but honest and \
+non-hyped, narrating that trend in plain English.
+
+You may reference a specific subject's individual trend when it adds \
+genuine insight -- for example, a subject moving opposite to the overall \
+trend (improving while the overall trend is steady or declining, or vice \
+versa) is worth a mention. Don't force it in if nothing stands out.
 
 Rules: reference ONLY the figures you are given -- never invent, guess, or \
-round differently than what's provided, and never mention grades, dates, or \
-subjects that were not given to you. Do not add generic study tips unless a \
-"needs focus" subject is explicitly given. Keep it brief and conversational, \
-not a report."""
+round differently than what's provided, and never mention grades, dates, \
+subjects, or trends that were not given to you. Do not add generic study \
+tips unless a "needs focus" subject is explicitly given. Keep it brief and \
+conversational, not a report."""
 
 
 def _format_trend_stats(
@@ -652,10 +694,42 @@ def _format_trend_stats(
                 "average": s.average,
                 "entry_count": s.entry_count,
                 "needs_focus": s.needs_focus,
+                "trend": s.trend,
             }
             for s in subjects
         ],
     }
+
+
+def _steady_trend_subject_note(subjects: List[SubjectAverage], later_avg: Optional[float]) -> str:
+    """One extra sentence, appended only when it adds something real: when
+    the OVERALL trend is "steady" but at least one subject's own trend is
+    "improving" or "declining", name the single most notable such subject.
+
+    "Most notable" = whichever mover's average sits furthest from the
+    overall later-half average -- a subject moving on its own while
+    everything else holds flat is the one worth a student's attention. If
+    later_avg isn't available (shouldn't happen for a "steady" overall
+    trend, which requires at least 2 grades, but guarded just in case),
+    falls back to the first improving subject, then the first declining
+    one. Returns "" (no extra sentence) when no subject is individually
+    trending -- never invents a number/subject/trend not already in
+    `subjects`.
+    """
+    movers = [s for s in subjects if s.trend in ("improving", "declining")]
+    if not movers:
+        return ""
+
+    if later_avg is not None:
+        pick = max(movers, key=lambda s: abs(s.average - later_avg))
+    else:
+        pick = next((s for s in movers if s.trend == "improving"), None) or movers[0]
+
+    direction = "trending upward" if pick.trend == "improving" else "trending downward"
+    return (
+        f" One thing worth noting: {pick.subject_name}'s own average has been "
+        f"{direction}, even though your overall numbers are holding steady."
+    )
 
 
 def _deterministic_insight_summary(
@@ -695,7 +769,8 @@ def _deterministic_insight_summary(
 
     # steady
     overall = round((earlier + later) / 2, 1) if earlier is not None and later is not None else later
-    return f"Your average has been holding steady around {overall}% over your last {n} grades."
+    base = f"Your average has been holding steady around {overall}% over your last {n} grades."
+    return base + _steady_trend_subject_note(subjects, later)
 
 
 def _build_ai_insight_summary(stats: dict) -> Optional[str]:

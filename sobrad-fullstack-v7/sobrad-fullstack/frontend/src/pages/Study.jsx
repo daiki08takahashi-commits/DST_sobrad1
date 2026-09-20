@@ -1371,14 +1371,11 @@ const TREND_DOT_COLORS = [
   '#e2584c',
 ];
 
-function trendSubjectOrder(series) {
-  const order = [];
-  series.forEach((p) => {
-    if (!order.includes(p.subject_name)) order.push(p.subject_name);
-  });
-  return order;
-}
-
+// Subject -> colour lookup shared by every chart on the page: `order` is a
+// stable, alphabetically-sorted list of subject names (see
+// `subjectColorOrder` in GradesTab, computed once from analysis.subjects)
+// so a given subject always gets the same colour everywhere, regardless of
+// which endpoint's data happens to list it first.
 function trendSubjectColor(name, order) {
   const idx = order.indexOf(name);
   return TREND_DOT_COLORS[idx % TREND_DOT_COLORS.length];
@@ -1387,7 +1384,7 @@ function trendSubjectColor(name, order) {
 // Small hand-rolled inline SVG line chart -- no charting library. Plots each
 // grade chronologically (x = entry order, y = score 0-100), with a dashed
 // reference line at the passing threshold.
-function StudyTrendChart({ series, threshold }) {
+function StudyTrendChart({ series, threshold, subjectColorOrder }) {
   if (!series || series.length === 0) return null;
 
   const W = 600;
@@ -1403,7 +1400,10 @@ function StudyTrendChart({ series, threshold }) {
   const xFor = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yFor = (score) => padT + plotH - (Math.max(0, Math.min(100, score)) / 100) * plotH;
 
-  const order = trendSubjectOrder(series);
+  // Legend still only lists subjects actually present in this series, but
+  // colours come from the shared, stable order so they match the bar chart.
+  const order = subjectColorOrder;
+  const presentNames = [...new Set(series.map((p) => p.subject_name))];
   const linePoints = series.map((p, i) => `${xFor(i)},${yFor(p.score)}`).join(' ');
   const thresholdY = yFor(threshold);
   const gridValues = [0, 25, 50, 75, 100];
@@ -1468,9 +1468,9 @@ function StudyTrendChart({ series, threshold }) {
           {fmt(lastDate)}
         </text>
       </svg>
-      {order.length > 1 && (
+      {presentNames.length > 1 && (
         <div className="study-trend-legend">
-          {order.map((name) => (
+          {presentNames.map((name) => (
             <span className="study-trend-legend-item" key={name}>
               <span
                 className="study-trend-legend-dot"
@@ -1481,6 +1481,135 @@ function StudyTrendChart({ series, threshold }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Trend arrow glyph + colour per subject trend. Colours are existing design
+// tokens (or the same explicit amber the dot palette above already uses for
+// its third slot) -- never --danger, which the top of index.css reserves
+// for the Emergency feature only.
+const SUBJECT_TREND_ARROWS = {
+  improving: { glyph: '↑', color: 'var(--highlight)' },
+  steady: { glyph: '→', color: 'var(--muted-2)' },
+  not_enough_data: { glyph: '→', color: 'var(--muted-2)' },
+  declining: { glyph: '↓', color: '#f5a623' },
+};
+
+function trendLabel(trend) {
+  return (trend || 'steady').replace(/_/g, ' ');
+}
+
+// Truncates a long subject name for the bar chart's x-axis label -- SVG
+// <text> has no CSS text-overflow/ellipsis equivalent, so this is done in
+// JS rather than relying on the CSS truncation pattern used for HTML
+// elements elsewhere in this file.
+function truncateBarLabel(name) {
+  if (!name) return '';
+  return name.length > 10 ? `${name.slice(0, 9)}…` : name;
+}
+
+// Hand-rolled inline SVG bar chart -- one vertical bar per subject, showing
+// its average (0-100 scale) against the passing threshold, coloured to
+// match StudyTrendChart via the same shared `subjectColorOrder`, with a
+// small trend arrow under each subject's name so "who's doing well" and
+// "who's moving" are both visible at a glance without reading numbers.
+function StudySubjectBars({ subjects, threshold, subjectColorOrder }) {
+  if (!subjects || subjects.length === 0) return null;
+
+  const W = 600;
+  const H = 250;
+  const padL = 34;
+  const padR = 14;
+  const padT = 14;
+  const padB = 58;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const n = subjects.length;
+  const gap = n > 1 ? 10 : 0;
+  const barW = Math.max(14, (plotW - gap * (n - 1)) / n);
+  const xFor = (i) => padL + i * (barW + gap);
+  const yFor = (value) => padT + plotH - (Math.max(0, Math.min(100, value)) / 100) * plotH;
+  const thresholdY = yFor(threshold);
+  const gridValues = [0, 25, 50, 75, 100];
+  const baseY = padT + plotH;
+
+  return (
+    <div className="study-bars-chart-wrap">
+      <svg
+        className="study-bars-chart"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`Subject averages across ${n} subject${n === 1 ? '' : 's'}, against a ${threshold}% passing threshold`}
+      >
+        {gridValues.map((v) => (
+          <line
+            key={`grid-${v}`}
+            x1={padL}
+            x2={W - padR}
+            y1={yFor(v)}
+            y2={yFor(v)}
+            className="study-bars-gridline"
+          />
+        ))}
+        {gridValues.map((v) => (
+          <text
+            key={`label-${v}`}
+            x={padL - 6}
+            y={yFor(v) + 3.5}
+            className="study-bars-axis-label"
+            textAnchor="end"
+          >
+            {v}
+          </text>
+        ))}
+        <line
+          x1={padL}
+          x2={W - padR}
+          y1={thresholdY}
+          y2={thresholdY}
+          className="study-bars-threshold-line"
+        />
+        {subjects.map((s, i) => {
+          const x = xFor(i);
+          const y = yFor(s.average);
+          const height = Math.max(0, baseY - y);
+          const cx = x + barW / 2;
+          const color = trendSubjectColor(s.subject_name, subjectColorOrder);
+          const arrow = SUBJECT_TREND_ARROWS[s.trend] || SUBJECT_TREND_ARROWS.steady;
+          const label = trendLabel(s.trend);
+          return (
+            <g key={s.subject_id}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={height}
+                rx={4}
+                className="study-bars-bar"
+                style={{ fill: color }}
+              >
+                <title>{`${s.subject_name}: ${s.average}%, ${label}`}</title>
+              </rect>
+              <text x={cx} y={baseY + 16} textAnchor="middle" className="study-bars-label">
+                {truncateBarLabel(s.subject_name)}
+              </text>
+              <text
+                x={cx}
+                y={baseY + 32}
+                textAnchor="middle"
+                className="study-bars-arrow"
+                style={{ fill: arrow.color }}
+                role="img"
+                aria-label={`${s.subject_name}: ${s.average}%, ${label}`}
+              >
+                {arrow.glyph}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -1610,6 +1739,16 @@ function GradesTab({ subjects, onSubjectsChange }) {
   }, [grades]);
 
   const flagged = analysis ? analysis.subjects.filter((s) => s.needs_focus) : [];
+
+  // Stable, alphabetically-sorted subject colour order, computed once from
+  // analysis.subjects (which always contains every subject, not just
+  // flagged ones) so a given subject renders the exact same colour in both
+  // the bar chart and the line chart below, regardless of which endpoint's
+  // data happens to list it first chronologically.
+  const subjectColorOrder = useMemo(
+    () => [...new Set((analysis?.subjects ?? []).map((s) => s.subject_name))].sort(),
+    [analysis]
+  );
 
   return (
     <div className="study-grades">
@@ -1744,13 +1883,34 @@ function GradesTab({ subjects, onSubjectsChange }) {
         )}
       </div>
 
+      <div className="study-subject-bars-section">
+        <p className="eyebrow">Your subjects at a glance</p>
+        {analysis ? (
+          analysis.subjects.length > 0 ? (
+            <StudySubjectBars
+              subjects={analysis.subjects}
+              threshold={threshold}
+              subjectColorOrder={subjectColorOrder}
+            />
+          ) : (
+            <p className="mood-empty">Log a few grades across your subjects to see this here.</p>
+          )
+        ) : (
+          <p className="mood-empty">…</p>
+        )}
+      </div>
+
       <div className="study-trend-section">
         <p className="eyebrow">Study progress</p>
         {insights ? (
           <>
             <p className="study-trend-summary">{insights.overall_summary}</p>
             {insights.series.length > 0 ? (
-              <StudyTrendChart series={insights.series} threshold={threshold} />
+              <StudyTrendChart
+                series={insights.series}
+                threshold={threshold}
+                subjectColorOrder={subjectColorOrder}
+              />
             ) : (
               <p className="mood-empty">Log a few grades to see your trend here.</p>
             )}

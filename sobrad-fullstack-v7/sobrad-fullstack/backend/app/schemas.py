@@ -357,6 +357,7 @@ class SubjectAverage(BaseModel):
     average: float
     entry_count: int
     needs_focus: bool
+    trend: str  # "improving" | "steady" | "declining" | "not_enough_data" -- same vocabulary as StudyInsightsOut.trend below, computed per-subject
     tip: Optional[str] = None
 
 

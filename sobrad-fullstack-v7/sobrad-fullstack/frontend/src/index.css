@@ -2251,6 +2251,7 @@ textarea:focus-visible {
     grid-template-areas:
       'threshold threshold'
       'form insights'
+      'bars bars'
       'trend trend'
       'list list';
     column-gap: 24px;
@@ -2265,6 +2266,9 @@ textarea:focus-visible {
   }
   .study-grades .study-insights {
     grid-area: insights;
+  }
+  .study-grades .study-subject-bars-section {
+    grid-area: bars;
   }
   .study-grades .study-trend-section {
     grid-area: trend;
@@ -2758,6 +2762,71 @@ textarea:focus-visible {
   height: 9px;
   border-radius: 50%;
   flex: none;
+}
+
+/* ================= STUDY SUBJECT BARS =================
+   "Your subjects at a glance" -- hand-rolled inline SVG bar chart, Study
+   page > Grades tab (see StudySubjectBars in Study.jsx). Sits between
+   .study-insights ("Where to focus") and .study-trend-section (the overall
+   trend line chart) above, same card language as both. All colors here are
+   design tokens too, except the bar-fill colour (comes from the shared
+   TREND_DOT_COLORS palette via trendSubjectColor, applied inline via style
+   so it matches StudyTrendChart's dots/legend exactly) and the trend-arrow
+   colour (SUBJECT_TREND_ARROWS in Study.jsx -- --highlight for improving,
+   --muted-2 for steady/not_enough_data, and the same explicit amber the
+   dot palette's third slot already uses for declining -- never --danger,
+   which stays reserved for Emergency per the palette note at the top of
+   this file). Because both of those are applied via inline style rather
+   than a CSS color value, like the trend-dot palette above, they need no
+   separate dark-mode override here either. */
+.study-subject-bars-section {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.study-bars-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.study-bars-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.study-bars-gridline {
+  stroke: var(--card-border);
+  stroke-width: 1;
+}
+.study-bars-threshold-line {
+  stroke: var(--muted-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.study-bars-bar {
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.study-bars-axis-label {
+  font-family: var(--font-label);
+  font-size: 9.5px;
+  fill: var(--muted-2);
+}
+.study-bars-label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  fill: var(--muted);
+}
+.study-bars-arrow {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 12px;
 }
 
 /* ================= ACCESSIBILITY / SENSORY-FRIENDLY SETTINGS =================
