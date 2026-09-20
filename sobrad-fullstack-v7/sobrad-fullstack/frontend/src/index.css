@@ -2942,6 +2942,39 @@ body.low-stimulation {
   padding: 10px 12px;
 }
 
+/* Appearance (Light/Dark/System) segmented control -- same visual language
+   as .study-tabs/.study-tab (a bordered pill housing evenly-split buttons,
+   the active one picked out with a heavier top border + highlight colour),
+   reused here as its own class pair so Settings doesn't depend on Study's
+   class names. */
+.appearance-options {
+  display: flex;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 5px;
+}
+.appearance-option {
+  flex: 1 1 0;
+  border: none;
+  border-top: 4px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 10px 8px 12px;
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.appearance-option.active {
+  background: var(--ambient);
+  border-top-color: var(--highlight);
+  color: var(--highlight);
+  font-weight: 800;
+}
+
 /* ================= FOCUS (Focus Session Timer + Emergency Focus Mode) =====
    Same card language as the rest of the app (var(--card)/--card-border,
    --radius-card-ish rounding, shadow-soft) so the mode picker + running

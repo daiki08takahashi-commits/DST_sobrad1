@@ -2,6 +2,7 @@ import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import { ToastProvider } from './ToastContext.jsx';
 import { SettingsProvider } from './SettingsContext.jsx';
+import { ThemeProvider } from './ThemeContext.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
@@ -23,6 +24,7 @@ function RootRedirect() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <ToastProvider>
         <SettingsProvider>
@@ -51,5 +53,6 @@ export default function App() {
         </SettingsProvider>
       </ToastProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }

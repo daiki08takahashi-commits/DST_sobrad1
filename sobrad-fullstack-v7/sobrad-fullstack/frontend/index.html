@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="SÕBRAD — a quiet place to land." />
+    <!-- Apply any explicit Light/Dark appearance override synchronously,
+         before anything renders, so a user who chose "Light" or "Dark" never
+         sees a flash of the wrong theme while React boots. "System" (the
+         default) stores nothing here, so no data-theme attribute is set and
+         the prefers-color-scheme media query in index.css decides alone,
+         exactly like before this preference existed. Kept in sync with
+         ThemeContext.jsx's THEME_KEY ('sobrad_theme'). -->
+    <script>
+      (function () {
+        try {
+          var theme = window.localStorage.getItem('sobrad_theme');
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', theme);
+          }
+        } catch (e) {
+          /* localStorage unavailable (private browsing, etc.) -- fall back
+             to the system preference, same as a first-ever visit. */
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

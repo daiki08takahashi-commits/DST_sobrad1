@@ -4,6 +4,7 @@ import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useSettings } from '../SettingsContext.jsx';
+import { useTheme } from '../ThemeContext.jsx';
 
 // A small labelled pill switch, shared by all four accessibility toggles
 // below. Renders as a real <button role="switch"> so it's keyboard- and
@@ -224,6 +225,40 @@ function SecurityQuestionSection() {
   );
 }
 
+const APPEARANCE_OPTIONS = [
+  { key: 'light', label: 'Light' },
+  { key: 'dark', label: 'Dark' },
+  { key: 'system', label: 'System' },
+];
+
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <section className="settings-section">
+      <h3>Appearance</h3>
+      <p className="settings-section-hint">
+        System matches your device&rsquo;s light/dark setting automatically. Light and Dark
+        override it and apply everywhere in Sõbrad right away.
+      </p>
+      <div className="appearance-options" role="radiogroup" aria-label="Appearance">
+        {APPEARANCE_OPTIONS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            role="radio"
+            aria-checked={theme === key}
+            className={`appearance-option${theme === key ? ' active' : ''}`}
+            onClick={() => setTheme(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AccessibilitySection() {
   const { settings, updateSettings } = useSettings();
   const showToast = useToast();
@@ -297,6 +332,7 @@ export default function Settings() {
       <div className="screen-inner">
         <ChangePasswordSection />
         <SecurityQuestionSection />
+        <AppearanceSection />
         <AccessibilitySection />
       </div>
     </>

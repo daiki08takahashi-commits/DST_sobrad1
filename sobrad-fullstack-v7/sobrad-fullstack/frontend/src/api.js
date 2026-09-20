@@ -10,6 +10,11 @@ const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').r
 
 const TOKEN_KEY = 'sobrad_token';
 const USERNAME_KEY = 'sobrad_username';
+// Appearance preference ('light' | 'dark' | 'system') -- a pure client-side
+// display preference, not user-account data, so it lives in localStorage
+// only and never touches the backend. Kept in sync with the inline
+// flash-prevention script in index.html.
+const THEME_KEY = 'sobrad_theme';
 
 // ---- token / session storage ----------------------------------------------
 
@@ -50,6 +55,34 @@ export function clearSession() {
 
 export function isAuthenticated() {
   return Boolean(getToken());
+}
+
+// ---- appearance (theme) preference -----------------------------------------
+// 'system' is the default/current behaviour (follow the OS via
+// prefers-color-scheme) and is represented by the ABSENCE of a stored value,
+// not the string 'system' -- that way a fresh browser with nothing stored
+// yet is indistinguishable from someone who explicitly picked System.
+
+export function getThemePreference() {
+  try {
+    const stored = window.localStorage.getItem(THEME_KEY);
+    return stored === 'light' || stored === 'dark' ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function setThemePreference(theme) {
+  try {
+    if (theme === 'light' || theme === 'dark') {
+      window.localStorage.setItem(THEME_KEY, theme);
+    } else {
+      window.localStorage.removeItem(THEME_KEY);
+    }
+  } catch {
+    // localStorage unavailable -- the choice just won't persist, same
+    // graceful degradation as session storage above.
+  }
 }
 
 // ---- core request helper ---------------------------------------------------
