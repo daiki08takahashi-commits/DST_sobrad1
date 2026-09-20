@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import { useTheme } from '../ThemeContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
+import dstLogoWhite from '../assets/dst_logo_white.png';
 import {
   BreatheIcon,
   ChatIcon,
@@ -28,6 +30,7 @@ function greetingForHour(hour) {
 export default function Home() {
   const navigate = useNavigate();
   const { username } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [now] = useState(() => new Date());
   const [stats, setStats] = useState(null);
   const [statsError, setStatsError] = useState(false);
@@ -62,7 +65,11 @@ export default function Home() {
           <h1>{greeting}{username ? `, ${username}` : ''}</h1>
         </div>
         <div className="home-topbar-brand">
-          <img className="dst-mark-home" src={dstLogo} alt="DST logo" />
+          <img
+            className="dst-mark-home"
+            src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
+            alt="DST logo"
+          />
         </div>
       </div>
 

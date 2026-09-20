@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
+import { useTheme } from '../ThemeContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
+import dstLogoWhite from '../assets/dst_logo_white.png';
 import {
   BreatheIcon,
   ChatIcon,
@@ -40,6 +42,7 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const navigate = useNavigate();
   const { username, signOut } = useAuth();
+  const { resolvedTheme } = useTheme();
 
   function handleLogout() {
     signOut();
@@ -51,7 +54,11 @@ export default function Sidebar() {
   return (
     <nav className="app-sidebar" aria-label="Main navigation">
       <div className="sidebar-brand">
-        <img className="sidebar-logo" src={dstLogo} alt="" />
+        <img
+          className="sidebar-logo"
+          src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
+          alt=""
+        />
         <span>Sõbrad</span>
       </div>
 

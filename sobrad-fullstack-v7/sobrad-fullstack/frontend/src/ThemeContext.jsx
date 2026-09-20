@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as api from './api.js';
 
 // Light / Dark / System appearance preference. Deliberately separate from
@@ -32,8 +32,33 @@ function applyTheme(theme) {
   }
 }
 
+function systemPrefersDark() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => api.getThemePreference());
+
+  // Live-tracked OS preference, only consulted when theme === 'system'. Kept
+  // as its own bit of state (rather than derived inline) so components can
+  // get a single always-'light'|'dark' resolvedTheme without each having to
+  // know about matchMedia themselves.
+  const [systemIsDark, setSystemIsDark] = useState(systemPrefersDark);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setSystemIsDark(e.matches);
+    // Safari < 14 only supports addListener/removeListener; modern browsers
+    // support addEventListener/removeEventListener. Support both.
+    if (mql.addEventListener) {
+      mql.addEventListener('change', handleChange);
+      return () => mql.removeEventListener('change', handleChange);
+    }
+    mql.addListener(handleChange);
+    return () => mql.removeListener(handleChange);
+  }, []);
 
   const setTheme = useCallback((next) => {
     api.setThemePreference(next);
@@ -41,7 +66,14 @@ export function ThemeProvider({ children }) {
     setThemeState(next);
   }, []);
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  // Always 'light' or 'dark', never 'system' -- resolves the live OS
+  // preference when the user's raw choice is 'system'.
+  const resolvedTheme = theme === 'light' || theme === 'dark' ? theme : systemIsDark ? 'dark' : 'light';
+
+  const value = useMemo(
+    () => ({ theme, setTheme, resolvedTheme }),
+    [theme, setTheme, resolvedTheme]
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

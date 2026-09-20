@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import { useTheme } from '../ThemeContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
+import dstLogoWhite from '../assets/dst_logo_white.png';
 
 const ROTATOR_LINES = [
   'Take your time.',
@@ -217,6 +219,7 @@ export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { resolvedTheme } = useTheme();
 
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [username, setUsername] = useState('');
@@ -293,7 +296,11 @@ export default function Login() {
     <div className="app-shell login-page">
       <div className="screen-inner">
         <div className="login-top">
-          <img className="dst-mark-login" src={dstLogo} alt="DST logo" />
+          <img
+            className="dst-mark-login"
+            src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
+            alt="DST logo"
+          />
           <div className="brand">DST Sõbrad</div>
           <p className="tagline">a quiet place to land</p>
           <p className={`rotator${lineVisible ? '' : ' hidden-line'}`} aria-live="polite">
