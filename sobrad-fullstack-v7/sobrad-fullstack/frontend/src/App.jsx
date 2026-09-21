@@ -16,6 +16,7 @@ import Insomnia from './pages/Insomnia.jsx';
 import Emergency from './pages/Emergency.jsx';
 import Focus from './pages/Focus.jsx';
 import Settings from './pages/Settings.jsx';
+import ScreenBreakReminder from './ScreenBreakReminder.jsx';
 
 function RootRedirect() {
   const { isAuthenticated } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
       <ToastProvider>
         <SettingsProvider>
         <BrowserRouter>
+          <ScreenBreakReminder />
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />

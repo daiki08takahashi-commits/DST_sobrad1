@@ -7,11 +7,11 @@ export function ToastProvider({ children }) {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef(null);
 
-  const showToast = useCallback((text) => {
+  const showToast = useCallback((text, durationMs = 2400) => {
     setMessage(text);
     setVisible(true);
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setVisible(false), 2400);
+    timerRef.current = setTimeout(() => setVisible(false), durationMs);
   }, []);
 
   return (

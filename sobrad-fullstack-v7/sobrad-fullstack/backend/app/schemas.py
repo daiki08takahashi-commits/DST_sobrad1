@@ -603,6 +603,7 @@ class AccessibilitySettingsOut(BaseModel):
     low_stimulation_mode: bool
     high_contrast: bool
     sound_enabled: bool
+    screen_break_reminders_enabled: bool
     # Which companion persona ('sobrad' or 'friends') is shown throughout
     # the chat UI -- see routers/settings.py for validation.
     companion: str
@@ -613,6 +614,7 @@ class AccessibilitySettingsUpdate(BaseModel):
     low_stimulation_mode: Optional[bool] = None
     high_contrast: Optional[bool] = None
     sound_enabled: Optional[bool] = None
+    screen_break_reminders_enabled: Optional[bool] = None
     companion: Optional[str] = None
 
 

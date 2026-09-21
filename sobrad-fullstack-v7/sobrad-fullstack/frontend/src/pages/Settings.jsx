@@ -296,6 +296,11 @@ function AccessibilitySection() {
       label: 'Sound',
       desc: 'Lets sounds (like the Focus timer chime) play.',
     },
+    {
+      key: 'screen_break_reminders_enabled',
+      label: 'Screen break reminders',
+      desc: 'A gentle nudge to rest your eyes after 45 minutes of use — Study, Breathing and Sleep don’t count toward it, since those are already time well spent.',
+    },
   ];
 
   return (

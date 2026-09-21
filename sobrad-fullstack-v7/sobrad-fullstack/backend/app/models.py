@@ -53,6 +53,7 @@ class User(Base):
     low_stimulation_mode = Column(Boolean, default=False, nullable=False)
     high_contrast = Column(Boolean, default=False, nullable=False)
     sound_enabled = Column(Boolean, default=True, nullable=False)
+    screen_break_reminders_enabled = Column(Boolean, default=True, nullable=False)
 
     # Which companion persona (avatar + display name + greeting) is shown
     # throughout the chat UI -- 'sobrad' (default, the original prototype

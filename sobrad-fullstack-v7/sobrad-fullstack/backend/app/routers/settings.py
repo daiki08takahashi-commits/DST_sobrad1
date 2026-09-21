@@ -24,6 +24,7 @@ def _accessibility_out(user: User) -> AccessibilitySettingsOut:
         low_stimulation_mode=user.low_stimulation_mode,
         high_contrast=user.high_contrast,
         sound_enabled=user.sound_enabled,
+        screen_break_reminders_enabled=user.screen_break_reminders_enabled,
         companion=user.companion,
     )
 

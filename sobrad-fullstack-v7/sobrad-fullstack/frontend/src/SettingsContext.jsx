@@ -19,6 +19,7 @@ const DEFAULTS = {
   low_stimulation_mode: false,
   high_contrast: false,
   sound_enabled: true,
+  screen_break_reminders_enabled: true,
 };
 
 const BODY_CLASS_MAP = {
