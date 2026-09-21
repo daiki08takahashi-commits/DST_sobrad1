@@ -23,7 +23,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.database import Base, engine
-from app.routers import ai_tools, auth, breathing, chat, focus, journal, mood, review, settings, stats, study, tasks
+from app.routers import ai_tools, auth, breathing, chat, focus, journal, mood, profile, review, settings, stats, study, tasks
 
 # Create tables on startup if they don't already exist. sobrad.db is created
 # automatically in the working directory on first run.
@@ -56,6 +56,12 @@ with engine.connect() as _conn:
         "sound_enabled": "BOOLEAN NOT NULL DEFAULT 1",
         "screen_break_reminders_enabled": "BOOLEAN NOT NULL DEFAULT 1",
         "companion": "VARCHAR NOT NULL DEFAULT 'sobrad'",
+        # Profile photo -- see models.py's User.profile_photo/
+        # profile_photo_content_type docstring. Both nullable, no default
+        # needed (nullable=True in the model; no photo set is the default
+        # state for every existing pre-migration row).
+        "profile_photo": "BLOB",
+        "profile_photo_content_type": "VARCHAR",
     }
     for _col_name, _col_ddl in _new_user_columns.items():
         if _col_name not in _existing_user_cols:
@@ -75,6 +81,24 @@ with engine.connect() as _conn:
             text("ALTER TABLE chat_messages ADD COLUMN companion VARCHAR NOT NULL DEFAULT 'sobrad'")
         )
         _conn.commit()
+
+    # journal_entries.photo / photo_content_type -- optional photo attachment
+    # on a journal entry, added after the initial release. See models.py's
+    # JournalEntry.photo docstring. Both nullable, no default needed (no
+    # photo attached is the default state for every existing pre-migration
+    # row) -- same rationale/pattern as the chat_messages.companion migration
+    # above.
+    _existing_journal_entry_cols = {
+        row[1] for row in _conn.execute(text("PRAGMA table_info(journal_entries)"))
+    }
+    _new_journal_entry_columns = {
+        "photo": "BLOB",
+        "photo_content_type": "VARCHAR",
+    }
+    for _col_name, _col_ddl in _new_journal_entry_columns.items():
+        if _col_name not in _existing_journal_entry_cols:
+            _conn.execute(text(f"ALTER TABLE journal_entries ADD COLUMN {_col_name} {_col_ddl}"))
+            _conn.commit()
 
 app = FastAPI(
     title="SOBRAD API",
@@ -121,6 +145,8 @@ app.include_router(settings.router)
 # explain-mistake/study-technique, each an honest `available: false` when no
 # ANTHROPIC_API_KEY is configured or the AI call/parse fails).
 app.include_router(ai_tools.router)
+# Profile photo storage -- see routers/profile.py's module docstring.
+app.include_router(profile.router)
 
 
 @app.get("/api/health", tags=["health"])

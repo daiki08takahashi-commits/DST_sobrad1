@@ -41,7 +41,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const { username, signOut } = useAuth();
+  const { username, profilePhoto, signOut } = useAuth();
   const { resolvedTheme } = useTheme();
 
   function handleLogout() {
@@ -95,12 +95,20 @@ export default function Sidebar() {
           <span>Log out</span>
         </button>
 
-        <div className="sidebar-account">
-          <span className="sidebar-avatar" aria-hidden="true">
-            {initial}
-          </span>
+        <button
+          type="button"
+          className="sidebar-account"
+          onClick={() => navigate('/profile')}
+        >
+          {profilePhoto ? (
+            <img className="sidebar-avatar" src={profilePhoto} alt="" aria-hidden="true" />
+          ) : (
+            <span className="sidebar-avatar" aria-hidden="true">
+              {initial}
+            </span>
+          )}
           <span className="sidebar-account-name">{username || 'Account'}</span>
-        </div>
+        </button>
       </div>
     </nav>
   );

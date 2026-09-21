@@ -183,3 +183,20 @@ export function PhoneIcon(props) {
     </svg>
   );
 }
+
+export function CameraIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5H8l1.2-2h5.6L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9z" />
+      <circle cx="12" cy="13" r="3.4" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 .8 12a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9L17 7" />
+    </svg>
+  );
+}

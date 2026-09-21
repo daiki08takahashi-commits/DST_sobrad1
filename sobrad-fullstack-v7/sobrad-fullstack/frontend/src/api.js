@@ -136,6 +136,50 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
   return data;
 }
 
+// Same contract as request() (bearer token attached, ApiError thrown on a
+// non-OK response) but for a multipart file upload instead of a JSON body.
+// Deliberately does NOT set a Content-Type header -- when `fetch` is given a
+// FormData body it sets its own `multipart/form-data; boundary=...` header
+// automatically, and setting one by hand here would omit the boundary and
+// break parsing server-side.
+async function requestMultipart(path, { method = 'PUT', formData } = {}) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new ApiError("Couldn't reach the server. Please try again.", 0);
+  }
+
+  let data = null;
+  const text = await response.text();
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && (data.detail || data.message)) ||
+      `Something went wrong (${response.status}).`;
+    const friendly =
+      typeof message === 'string' ? message : 'Something went wrong.';
+    throw new ApiError(friendly, response.status);
+  }
+
+  return data;
+}
+
 // ---- auth -------------------------------------------------------------------
 
 export function login(username, password) {
@@ -190,6 +234,22 @@ export function setSecurityQuestion({ securityQuestion, securityAnswer }) {
   });
 }
 
+export function getMe() {
+  return request('/auth/me');
+}
+
+// ---- profile photo ----------------------------------------------------------
+
+export function uploadProfilePhoto(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return requestMultipart('/profile/photo', { method: 'PUT', formData });
+}
+
+export function deleteProfilePhoto() {
+  return request('/profile/photo', { method: 'DELETE' });
+}
+
 // ---- settings: accessibility ------------------------------------------------
 
 export function getAccessibilitySettings() {
@@ -214,6 +274,46 @@ export function getJournalEntries() {
 
 export function createJournalEntry(text) {
   return request('/journal', { method: 'POST', body: { text } });
+}
+
+// ---- journal: photo attachment ---------------------------------------------
+// Reuses the shared `requestMultipart()` helper defined above (originally
+// added for the profile-photo feature) -- it already does exactly what a
+// journal-photo upload needs: a `FormData` body with NO explicit
+// Content-Type header (the browser sets its own multipart boundary), while
+// still attaching the same Authorization header as every other call.
+
+export function uploadJournalPhoto(entryId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return requestMultipart(`/journal/${entryId}/photo`, { method: 'POST', formData });
+}
+
+export function deleteJournalPhoto(entryId) {
+  return request(`/journal/${entryId}/photo`, { method: 'DELETE' });
+}
+
+// Fetches a journal entry's photo as a blob object URL, so it can be used as
+// an <img> src -- GET /api/journal/{id}/photo requires the Authorization
+// header, which a plain <img src="..."> tag can't send. Caller owns the
+// returned URL and must revoke it with URL.revokeObjectURL() once it's no
+// longer needed, to avoid leaking memory.
+export async function getJournalPhotoBlobUrl(entryId) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}/journal/${entryId}/photo`, { headers });
+  } catch {
+    throw new ApiError("Couldn't reach the server. Please try again.", 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(`Couldn't load the photo (${response.status}).`, response.status);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 }
 
 // ---- chat -----------------------------------------------------------------

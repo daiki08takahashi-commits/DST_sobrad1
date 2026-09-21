@@ -42,6 +42,13 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    # Full "data:image/jpeg;base64,..." URI, or None when no photo is set.
+    # Built from User.profile_photo/profile_photo_content_type (see
+    # routers/auth.py's _user_out helper and routers/profile.py) -- exposed
+    # this way (rather than a separate binary-fetch endpoint) so an <img>
+    # tag can render it directly without needing to send an Authorization
+    # header.
+    profile_photo_data_url: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -110,6 +117,11 @@ class JournalEntryOut(BaseModel):
     id: int
     text: str
     created_at: datetime
+    # Whether a photo is attached -- never the image bytes/a data URL here:
+    # a journal list can contain many entries, so keep this response light.
+    # The photo itself is fetched separately, only when actually viewed, via
+    # GET /api/journal/{id}/photo.
+    has_photo: bool = False
 
 
 # ---- Mood ----

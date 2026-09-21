@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Topbar from '../components/Topbar.jsx';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
-import { ShieldIcon } from '../components/icons.jsx';
+import { CameraIcon, ShieldIcon, TrashIcon } from '../components/icons.jsx';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
@@ -19,6 +19,37 @@ export default function Journal() {
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Entry id -> blob object URL for that entry's photo thumbnail. Fetched
+  // lazily (only for entries reporting has_photo) and only once per entry --
+  // see the effect below.
+  const [photoUrls, setPhotoUrls] = useState({});
+  // Entry id -> true while an upload/delete for that entry's photo is in
+  // flight, so its button can show a calm "Working…" state instead of
+  // allowing a second click mid-request.
+  const [photoBusy, setPhotoBusy] = useState({});
+  const fileInputRefs = useRef({});
+  // Mirrors `photoUrls` so the unmount-cleanup effect below always revokes
+  // whatever was most recently in state, not a stale closure over the
+  // value from when that effect was first set up.
+  const photoUrlsRef = useRef({});
+
+  useEffect(() => {
+    photoUrlsRef.current = photoUrls;
+  }, [photoUrls]);
+
+  // Revoke every remaining blob URL when the Journal screen unmounts, so
+  // navigating away doesn't leak memory.
+  useEffect(() => {
+    return () => {
+      Object.values(photoUrlsRef.current).forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }, []);
 
   function loadEntries() {
     return api
@@ -36,6 +67,47 @@ export default function Journal() {
     loadEntries();
   }, []);
 
+  // Fetch a thumbnail (as a blob object URL, since the endpoint needs the
+  // Authorization header a plain <img src> can't send) for any entry that
+  // reports has_photo but doesn't have one loaded yet. Only ever fetched
+  // once per entry -- replacing/removing a photo updates or clears the map
+  // directly instead of relying on this effect to notice.
+  useEffect(() => {
+    entries.forEach((entry) => {
+      if (entry.has_photo && !photoUrls[entry.id]) {
+        api
+          .getJournalPhotoBlobUrl(entry.id)
+          .then((url) => {
+            setPhotoUrls((prev) => ({ ...prev, [entry.id]: url }));
+          })
+          .catch(() => {
+            // Thumbnail just won't show; the entry itself is unaffected.
+          });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+
+  function replaceEntry(updated) {
+    setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  }
+
+  function forgetPhotoUrl(entryId) {
+    setPhotoUrls((prev) => {
+      const url = prev[entryId];
+      if (url) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // ignore
+        }
+      }
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+  }
+
   async function handleSave() {
     const text = value.trim();
     if (!text) return;
@@ -51,6 +123,44 @@ export default function Journal() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handlePhotoChosen(entryId, file) {
+    if (!file) return;
+    setPhotoBusy((prev) => ({ ...prev, [entryId]: true }));
+    try {
+      const updated = await api.uploadJournalPhoto(entryId, file);
+      replaceEntry(updated);
+      // Drop any previously-loaded thumbnail for this entry -- if it's a
+      // replacement, the old blob URL would otherwise keep showing the
+      // photo that was just replaced. The effect above will fetch the new
+      // one once it sees has_photo with nothing cached.
+      forgetPhotoUrl(entryId);
+      showToast('Photo added.');
+    } catch (err) {
+      showToast(err.message || "Couldn't attach that photo. Please try again.");
+    } finally {
+      setPhotoBusy((prev) => ({ ...prev, [entryId]: false }));
+    }
+  }
+
+  async function handleRemovePhoto(entryId) {
+    setPhotoBusy((prev) => ({ ...prev, [entryId]: true }));
+    try {
+      const updated = await api.deleteJournalPhoto(entryId);
+      replaceEntry(updated);
+      forgetPhotoUrl(entryId);
+      showToast('Photo removed.');
+    } catch (err) {
+      showToast(err.message || "Couldn't remove that photo. Please try again.");
+    } finally {
+      setPhotoBusy((prev) => ({ ...prev, [entryId]: false }));
+    }
+  }
+
+  function openPhoto(entryId) {
+    const url = photoUrls[entryId];
+    if (url) window.open(url, '_blank', 'noopener');
   }
 
   return (
@@ -95,6 +205,53 @@ export default function Journal() {
             <div className="journal-card" key={entry.id}>
               <p className="journal-date">{formatDate(entry.created_at)}</p>
               <p className="journal-preview">{preview(entry.text)}</p>
+
+              {entry.has_photo && photoUrls[entry.id] && (
+                <button
+                  type="button"
+                  className="journal-photo-thumb"
+                  onClick={() => openPhoto(entry.id)}
+                  aria-label="Open full-size photo in a new tab"
+                >
+                  <img src={photoUrls[entry.id]} alt="" />
+                </button>
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                ref={(el) => {
+                  fileInputRefs.current[entry.id] = el;
+                }}
+                onChange={(e) => {
+                  const file = e.target.files && e.target.files[0];
+                  handlePhotoChosen(entry.id, file);
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <div className="journal-photo-actions">
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  disabled={photoBusy[entry.id]}
+                  onClick={() => fileInputRefs.current[entry.id]?.click()}
+                >
+                  <span className="icon"><CameraIcon /></span>
+                  {entry.has_photo ? 'Change photo' : 'Add photo'}
+                </button>
+                {entry.has_photo && (
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    disabled={photoBusy[entry.id]}
+                    onClick={() => handleRemovePhoto(entry.id)}
+                  >
+                    <span className="icon"><TrashIcon /></span>
+                    Remove photo
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     UniqueConstraint,
 )
@@ -62,6 +63,17 @@ class User(Base):
     # routers/chat.py. See routers/settings.py for the validated values.
     companion = Column(String, default="sobrad", nullable=False)
 
+    # Profile photo -- stored as raw bytes directly in the SQLite database
+    # (not a file on disk: this app's deployment environment has no
+    # persistent-disk guarantee, so the DB is the only persistence-consistent
+    # place for it, same as every other piece of user data). Exposed to the
+    # frontend as a data: URI string (see schemas.UserOut.profile_photo_data_url
+    # and routers/auth.py's _user_out helper) rather than a separate
+    # binary-fetch endpoint, so an <img> tag doesn't need to send an
+    # Authorization header. Both nullable: no photo set is the default state.
+    profile_photo = Column(LargeBinary, nullable=True)
+    profile_photo_content_type = Column(String, nullable=True)
+
     journal_entries = relationship(
         "JournalEntry", back_populates="user", cascade="all, delete-orphan"
     )
@@ -104,6 +116,19 @@ class JournalEntry(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     text = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    # Optional attached photo -- stored as raw bytes directly in the SQLite
+    # database (not a file on disk: this app's deployment environment has no
+    # persistent-disk guarantee, so the DB is the only persistence-consistent
+    # place for it, same as every other piece of user data). Unlike
+    # User.profile_photo above, this is exposed via a dedicated
+    # GET /api/journal/{id}/photo endpoint (not inlined as a data: URI on the
+    # entry itself) since a journal list can contain many entries and each
+    # entry's photo can be up to 5MB -- inlining would make every list
+    # response heavy even when no photo is being viewed. Both nullable: no
+    # photo attached is the default state.
+    photo = Column(LargeBinary, nullable=True)
+    photo_content_type = Column(String, nullable=True)
 
     user = relationship("User", back_populates="journal_entries")
 

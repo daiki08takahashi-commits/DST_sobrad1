@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useTheme } from '../ThemeContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
@@ -8,7 +7,6 @@ import dstLogoWhite from '../assets/dst_logo_white.png';
 import {
   BreatheIcon,
   ChatIcon,
-  GoalIcon,
   JournalIcon,
   MoodIcon,
   MoonIcon,
@@ -24,16 +22,16 @@ function greetingForHour(hour) {
 
 // Note: "Today Mode" (the today-due checklist + Start Focus/Help me focus
 // card) used to live here, between the hero card and the stats row. It's
-// moved to Study's new "Today" tab (see TodayTab in Study.jsx) so Home stays
-// just hero card + stats row + nav ring -- no card clutter mixed in.
+// moved to Study's new "Today" tab (see TodayTab in Study.jsx). The stats
+// row itself has since moved too -- to the new Profile page (see
+// pages/Profile.jsx) -- so Home now stays just hero card + nav ring, no
+// card clutter or stats mixed in.
 
 export default function Home() {
   const navigate = useNavigate();
-  const { username } = useAuth();
+  const { username, profilePhoto } = useAuth();
   const { resolvedTheme } = useTheme();
   const [now] = useState(() => new Date());
-  const [stats, setStats] = useState(null);
-  const [statsError, setStatsError] = useState(false);
 
   const greeting = greetingForHour(now.getHours());
   const dateStr = now.toLocaleDateString('en-GB', {
@@ -42,20 +40,7 @@ export default function Home() {
     month: 'long',
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getStats()
-      .then((data) => {
-        if (!cancelled) setStats(data);
-      })
-      .catch(() => {
-        if (!cancelled) setStatsError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
 
   return (
     <>
@@ -64,12 +49,30 @@ export default function Home() {
           <p className="eyebrow">{dateStr}</p>
           <h1>{greeting}{username ? `, ${username}` : ''}</h1>
         </div>
-        <div className="home-topbar-brand">
-          <img
-            className="dst-mark-home"
-            src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
-            alt="DST logo"
-          />
+        <div className="home-topbar-actions">
+          {/* The only reliably-visible entry point to Profile on mobile --
+              there's no bottom nav and the Sidebar is desktop-only (hidden
+              below 900px), so this button has to live right here rather
+              than behind a breakpoint. */}
+          <button
+            type="button"
+            className="home-avatar-btn"
+            onClick={() => navigate('/profile')}
+            aria-label="Profile"
+          >
+            {profilePhoto ? (
+              <img className="home-avatar-photo" src={profilePhoto} alt="" />
+            ) : (
+              <span aria-hidden="true">{initial}</span>
+            )}
+          </button>
+          <div className="home-topbar-brand">
+            <img
+              className="dst-mark-home"
+              src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
+              alt="DST logo"
+            />
+          </div>
         </div>
       </div>
 
@@ -77,24 +80,6 @@ export default function Home() {
         <div className="hero-card">
           <p className="hero-date">{dateStr}</p>
           <p className="hero-line">However today feels, you&rsquo;re welcome here.</p>
-        </div>
-
-        <div className="stats-row">
-          <div className="stat-chip">
-            <span className="icon"><BreatheIcon /></span>
-            <strong>{stats ? stats.grounding_minutes : statsError ? '—' : '…'}</strong>
-            <span>grounding minutes</span>
-          </div>
-          <div className="stat-chip">
-            <span className="icon"><JournalIcon /></span>
-            <strong>{stats ? stats.journal_entries : statsError ? '—' : '…'}</strong>
-            <span>journal entries</span>
-          </div>
-          <div className="stat-chip">
-            <span className="icon"><GoalIcon /></span>
-            <strong>{stats ? stats.goals_reached : statsError ? '—' : '…'}</strong>
-            <span>goals reached</span>
-          </div>
         </div>
 
         <div className="nav-field">

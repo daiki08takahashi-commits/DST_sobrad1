@@ -552,6 +552,41 @@ textarea:focus-visible {
   height: 34px;
   display: block;
 }
+/* Wraps the small profile-avatar button + the existing DST logo, so both
+   sit together on the topbar's right side (see .home-topbar's
+   justify-content: space-between above) instead of the avatar needing a
+   third flex slot of its own. This button is the only reliably-visible way
+   to reach Profile below the 900px sidebar breakpoint -- see Home.jsx. */
+.home-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.home-avatar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-ink);
+  border: none;
+  padding: 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px var(--shadow-soft);
+}
+.home-avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
 /* ================= HOME ================= */
 .hero-card {
@@ -1015,6 +1050,43 @@ textarea:focus-visible {
   font-size: 14px;
   color: var(--ink);
   line-height: 1.5;
+}
+
+/* Photo attachment on a journal entry -- thumbnail button (opens the
+   full-size image in a new tab) plus the add/change/remove action row.
+   Reuses .btn-quiet for the actions, same as every other per-card action
+   elsewhere in the app (e.g. Study's event rows). */
+.journal-photo-thumb {
+  display: block;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ambient);
+  cursor: pointer;
+}
+.journal-photo-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.journal-photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.journal-photo-actions .btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.journal-photo-actions .icon {
+  width: 16px;
+  height: 16px;
 }
 
 /* ================= CHAT ================= */
@@ -2528,12 +2600,26 @@ textarea:focus-visible {
     color: var(--danger-ink);
   }
 
+  /* A <button> now (see Sidebar.jsx -- it navigates to /profile), so it
+     needs its own reset on top of the original div's layout: full width,
+     no border/background of its own, text left-aligned, plus a hover state
+     matching .sidebar-row's for consistency with every other row here. */
   .sidebar-account {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 14px 10px 2px;
     min-width: 0;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+  }
+  .sidebar-account:hover {
+    background: var(--ambient);
   }
   .sidebar-avatar {
     width: 30px;
@@ -2548,6 +2634,9 @@ textarea:focus-visible {
     font-weight: 700;
     font-size: 13px;
     flex: none;
+    /* Applies when this class is on an <img> (a real photo is set) --
+       harmless on the <span> fallback. */
+    object-fit: cover;
   }
   .sidebar-account-name {
     font-family: var(--font-label);
@@ -2899,6 +2988,66 @@ body.low-stimulation .hero-card {
 }
 body.low-stimulation {
   filter: saturate(0.92);
+}
+
+/* ================= PROFILE PAGE ================= */
+/* Reuses .settings-section for the photo card's background/border/radius/
+   shadow (see below), and .stats-row/.stat-chip as-is for the stats moved
+   over from Home -- only the photo-specific bits get new classes here. */
+.profile-photo-section {
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.profile-photo-frame {
+  display: flex;
+}
+.profile-photo {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+/* Same initial-letter fallback as .sidebar-avatar/.home-avatar-btn, just
+   sized for a profile page rather than a nav chrome. */
+.profile-photo-fallback {
+  background: var(--primary);
+  color: var(--primary-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 36px;
+}
+.profile-username {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+}
+.profile-photo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+/* Visually hidden but still focusable/clickable via the "Upload photo"/
+   "Change photo" button, which calls this input's .click() -- keeps the
+   raw <input type="file"> off-screen instead of styling the browser's own
+   file-picker control, matching this app's button classes everywhere else. */
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ================= SETTINGS PAGE ================= */

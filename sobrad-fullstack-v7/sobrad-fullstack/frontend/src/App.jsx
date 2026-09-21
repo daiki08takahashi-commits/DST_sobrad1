@@ -16,6 +16,7 @@ import Insomnia from './pages/Insomnia.jsx';
 import Emergency from './pages/Emergency.jsx';
 import Focus from './pages/Focus.jsx';
 import Settings from './pages/Settings.jsx';
+import Profile from './pages/Profile.jsx';
 import ScreenBreakReminder from './ScreenBreakReminder.jsx';
 
 function RootRedirect() {
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/insomnia" element={<Insomnia />} />
               <Route path="/emergency" element={<Emergency />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/focus" element={<Focus />} />
             </Route>
 
