@@ -29,7 +29,7 @@ function greetingForHour(hour) {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { username, profilePhoto } = useAuth();
+  const { username } = useAuth();
   const { resolvedTheme } = useTheme();
   const [now] = useState(() => new Date());
 
@@ -40,8 +40,6 @@ export default function Home() {
     month: 'long',
   });
 
-  const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
-
   return (
     <>
       <div className="home-topbar">
@@ -49,30 +47,12 @@ export default function Home() {
           <p className="eyebrow">{dateStr}</p>
           <h1>{greeting}{username ? `, ${username}` : ''}</h1>
         </div>
-        <div className="home-topbar-actions">
-          {/* The only reliably-visible entry point to Profile on mobile --
-              there's no bottom nav and the Sidebar is desktop-only (hidden
-              below 900px), so this button has to live right here rather
-              than behind a breakpoint. */}
-          <button
-            type="button"
-            className="home-avatar-btn"
-            onClick={() => navigate('/profile')}
-            aria-label="Profile"
-          >
-            {profilePhoto ? (
-              <img className="home-avatar-photo" src={profilePhoto} alt="" />
-            ) : (
-              <span aria-hidden="true">{initial}</span>
-            )}
-          </button>
-          <div className="home-topbar-brand">
-            <img
-              className="dst-mark-home"
-              src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
-              alt="DST logo"
-            />
-          </div>
+        <div className="home-topbar-brand">
+          <img
+            className="dst-mark-home"
+            src={resolvedTheme === 'dark' ? dstLogoWhite : dstLogo}
+            alt="DST logo"
+          />
         </div>
       </div>
 

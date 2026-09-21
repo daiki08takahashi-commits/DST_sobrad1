@@ -552,42 +552,6 @@ textarea:focus-visible {
   height: 34px;
   display: block;
 }
-/* Wraps the small profile-avatar button + the existing DST logo, so both
-   sit together on the topbar's right side (see .home-topbar's
-   justify-content: space-between above) instead of the avatar needing a
-   third flex slot of its own. This button is the only reliably-visible way
-   to reach Profile below the 900px sidebar breakpoint -- see Home.jsx. */
-.home-topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: none;
-}
-.home-avatar-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: var(--primary-ink);
-  border: none;
-  padding: 0;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-label);
-  font-weight: 700;
-  font-size: 14px;
-  overflow: hidden;
-  box-shadow: 0 4px 10px var(--shadow-soft);
-}
-.home-avatar-photo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 /* ================= HOME ================= */
 .hero-card {
   background: var(--hero-bg);
@@ -3009,7 +2973,7 @@ body.low-stimulation {
   object-fit: cover;
   box-shadow: 0 10px 22px var(--shadow-soft);
 }
-/* Same initial-letter fallback as .sidebar-avatar/.home-avatar-btn, just
+/* Same initial-letter fallback as .sidebar-avatar, just
    sized for a profile page rather than a nav chrome. */
 .profile-photo-fallback {
   background: var(--primary);
