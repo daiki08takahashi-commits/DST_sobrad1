@@ -112,6 +112,9 @@ class User(Base):
     focus_sessions = relationship(
         "FocusSession", back_populates="user", cascade="all, delete-orphan"
     )
+    companions = relationship(
+        "Companion", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class JournalEntry(Base):
@@ -147,6 +150,45 @@ class BreathingSession(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     user = relationship("User", back_populates="breathing_sessions")
+
+
+class Companion(Base):
+    """A chat "friend" thread -- either one of the two auto-seeded built-in
+    personas (Sõbrad, Friends) or one the user added themselves via "Add a
+    friend". See routers/companions.py for the full feature rationale and
+    routers/chat.py's _build_system_prompt for how personality_prompt is (and
+    is not) layered into the AI system prompt."""
+
+    __tablename__ = "companions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Identifies this companion's chat thread -- matches ChatMessage.companion
+    # (see chat.py). 'sobrad' and 'friends' for the two built-in personas
+    # (auto-seeded per user, see companions.py's _ensure_default_companions),
+    # an opaque token (secrets.token_urlsafe) for anything the user adds
+    # themselves via "Add a friend". Unique per user, not globally.
+    key = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    # Free-text tone/personality description the user can set for a companion
+    # THEY added -- never set/editable for is_default=True rows, see
+    # companions.py's PATCH endpoint. Layered into the AI system prompt as
+    # supplementary style guidance only -- see chat.py's _build_system_prompt
+    # for the hard safety rule about what this can and can't change.
+    personality_prompt = Column(String, nullable=True)
+    avatar = Column(LargeBinary, nullable=True)
+    avatar_content_type = Column(String, nullable=True)
+    hidden = Column(Boolean, nullable=False, default=False)
+    # True only for the two auto-seeded built-in personas -- protects their
+    # name/personality from being changed (hidden still works on them).
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    user = relationship("User", back_populates="companions")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "key", name="uq_companions_user_key"),
+    )
 
 
 class ChatMessage(Base):

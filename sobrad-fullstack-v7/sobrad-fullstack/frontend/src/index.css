@@ -1227,6 +1227,93 @@ textarea:focus-visible {
   color: var(--muted-2);
 }
 
+/* Fallback avatar circle for a companion with no photo (a custom companion
+   with no avatar uploaded) -- first-letter-of-name, same idea as
+   Sidebar.jsx's own .sidebar-avatar fallback. Always paired with one of the
+   existing sizing classes (.chat-list-avatar / .chat-bubble-avatar), which
+   already supply width/height/border-radius/box-shadow/object-fit -- this
+   just adds the centered-letter treatment on top, so it works on a <span>
+   exactly where those classes are normally put on an <img>. */
+.avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: var(--primary-ink);
+  font-family: var(--font-label);
+  font-weight: 700;
+}
+.chat-list-avatar.avatar-initial {
+  font-size: 18px;
+}
+.chat-bubble-avatar.avatar-initial {
+  font-size: 13px;
+}
+
+/* Custom companions ("Add a friend" + per-row hide/edit/delete) --------- */
+.chat-add-friend-btn {
+  align-self: flex-start;
+}
+
+/* Wraps one chat-list row together with its small strip of per-row actions
+   (hide/show, and for a custom companion, edit/delete) -- a sibling of
+   .chat-list-row rather than nested inside it, since .chat-list-row is
+   itself a <button> and can't contain further interactive buttons. */
+.chat-list-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chat-list-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 0 6px;
+}
+.chat-list-row-actions .btn-quiet {
+  padding: 2px 4px;
+  font-size: 12.5px;
+}
+
+/* "Show hidden friends" toggle + the hidden sub-section it reveals -- kept
+   visually distinct (slightly muted) from the main list above, matching
+   how a hidden thread is meant to read: still fully there, just tucked
+   away. */
+.chat-hidden-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.chat-list-hidden {
+  opacity: 0.78;
+}
+
+/* Shared "Add a friend" / "Edit friend" form -- same card language as
+   .chat-list-row (background/border/radius/shadow), just a form instead of
+   a button. */
+.chat-friend-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: 0 8px 18px var(--shadow-soft);
+}
+.chat-friend-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.chat-friend-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ================= SHARED EMPTY-STATE TEXT =================
    .mood-empty started life as the Mood page's own "nothing logged yet"
    style; now that Mood is gone it's just the app's shared quiet

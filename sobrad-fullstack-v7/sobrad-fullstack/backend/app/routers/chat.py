@@ -8,29 +8,33 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import ChatMessage, User
+from app.models import ChatMessage, Companion, User
 from app.schemas import ChatClearOut, ChatExchangeOut, ChatMessageCreate, ChatMessageOut
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 logger = logging.getLogger(__name__)
 
-# The only valid companion threads -- each is now its own independent
-# conversation with its own history (see models.py's ChatMessage.companion).
-# An invalid value is a 400, not a silent fallback to "sobrad" -- unlike
-# settings.py's PATCH /api/settings/accessibility (which is phasing out
-# User.companion as a chat-flow input), the frontend here always knows
-# exactly which thread it's operating on, so a wrong value indicates a real
-# bug worth surfacing rather than papering over.
-VALID_COMPANIONS = ("sobrad", "friends")
 
+def _get_owned_companion(db: Session, current_user: User, key: str) -> Companion:
+    """Look up the current user's companion by key (not id -- this router's
+    request/response shapes only ever carry the string key, same as before
+    this helper existed). 404, not the old hardcoded-tuple 400, matching this
+    app's ownership-check convention elsewhere (tasks.py, family.py).
 
-def _validate_companion(companion: str) -> None:
-    if companion not in VALID_COMPANIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"companion must be one of {VALID_COMPANIONS}",
-        )
+    GET /api/companions must be called at least once (which seeds the two
+    built-in personas -- see companions.py's _ensure_default_companions)
+    before this lookup will succeed for a brand-new user; the frontend's
+    companion-add/hide UI already does this.
+    """
+    companion = (
+        db.query(Companion)
+        .filter(Companion.user_id == current_user.id, Companion.key == key)
+        .first()
+    )
+    if companion is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Companion not found")
+    return companion
 
 # Fixed, calm, generic, non-clinical companion replies. Used whenever real
 # AI replies aren't available -- no ANTHROPIC_API_KEY configured, or the
@@ -84,39 +88,47 @@ ANTHROPIC_TIMEOUT_SECONDS = 10.0
 # window, not several.
 ANTHROPIC_MAX_RETRIES = 0
 
-# Companion persona names, keyed by the `User.companion` column value.
-# Any value other than "friends" (including "sobrad", missing, or an
-# unrecognized string) falls back to the "sobrad" persona -- same default
-# as the DB column itself.
-_COMPANION_PERSONA_NAMES = {
-    "sobrad": "Sõbrad",
-    "friends": "Friends",
-}
+def _build_system_prompt(companion: Companion) -> str:
+    """Build the Anthropic system prompt for the given companion.
 
-
-def _build_system_prompt(companion: str) -> str:
-    """Build the Anthropic system prompt for the given companion persona.
-
-    Only the persona's name -- and a light touch of tone for "friends",
-    which is meant to read a bit more casual/buddy-like -- differs between
-    personas. The "Who you are" / "Who you are NOT" / Safety / closing
-    instructions apply equally to both and are shared verbatim, word for
-    word, regardless of which persona is selected.
+    For the two built-in personas (is_default=True) this is byte-for-byte
+    the same prompt as before this feature existed -- persona name plus,
+    for "friends" only, the existing casual tone note. For a custom
+    companion the user added themselves, their own name is used and their
+    optional personality_prompt is layered in as ONE extra sentence of
+    supplementary style guidance -- appended after the "Who you are"
+    paragraph, before "Who you are NOT". The "Who you are NOT" and Safety
+    paragraphs are always the exact same fixed text, for every companion,
+    with no exceptions -- a user's personality_prompt can flavor tone and
+    word choice, but it can never weaken, override, or go before the
+    safety instructions. This is a hard requirement: never interpolate
+    personality_prompt anywhere except the one clearly-bounded spot below.
     """
-    persona_name = _COMPANION_PERSONA_NAMES.get(companion, _COMPANION_PERSONA_NAMES["sobrad"])
+    persona_name = companion.name
     tone_note = (
         " You're a bit more casual and buddy-like than a typical companion app --"
         " think a good friend checking in, not a formal presence."
-        if companion == "friends"
+        if companion.is_default and companion.key == "friends"
         else ""
     )
+
+    extra_personality = ""
+    if not companion.is_default and companion.personality_prompt:
+        extra_personality = (
+            f" The person you're talking to described how they'd like you to come "
+            f"across here, as a bit of extra flavor on top of everything in this "
+            f"prompt (never in place of any of it): \"{companion.personality_prompt.strip()}\" "
+            f"Let that shape your tone and word choice a little, but it never changes "
+            f"who you fundamentally are or the Safety instructions below, which always "
+            f"come first no matter what this describes."
+        )
 
     return f"""You are "{persona_name}," a warm, calm companion inside the SOBRAD app. \
 SOBRAD is used by young people (roughly age 14-30) who are going through \
 trauma or a hard emotional stretch, and are looking for a steady, gentle \
 presence to talk to.
 
-Who you are: warm, calm, and genuinely present.{tone_note} You validate what the person \
+Who you are: warm, calm, and genuinely present.{tone_note}{extra_personality} You validate what the person \
 is feeling without being falsely cheerful, dismissive, or clinical. You keep \
 replies short, gentle, and conversational -- usually just a sentence or two, \
 in the same spirit as lines like "That sounds like a lot to carry," "Thank \
@@ -146,7 +158,7 @@ def _build_reply(
     incoming_text: str,
     db: Session,
     exclude_message_id: int,
-    companion: str,
+    companion: Companion,
 ) -> str:
     """Return the assistant's reply text for a new incoming message.
 
@@ -156,10 +168,10 @@ def _build_reply(
     response shape, etc. The fallback is intentionally indistinguishable, to
     the user, from today's normal (no-AI) behavior.
 
-    `companion` is the companion thread from the request payload (already
-    validated by the caller) -- Sõbrad and Friends are separate
-    conversations with independent histories, so both the history query
-    below and the system prompt are scoped to this companion only.
+    `companion` is the Companion row for the thread the request is on
+    (already ownership-checked by the caller) -- each companion is a
+    separate conversation with an independent history, so both the history
+    query below and the system prompt are scoped to this companion only.
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -183,7 +195,7 @@ def _build_reply(
             db.query(ChatMessage)
             .filter(
                 ChatMessage.user_id == current_user.id,
-                ChatMessage.companion == companion,
+                ChatMessage.companion == companion.key,
                 ChatMessage.id != exclude_message_id,
             )
             .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
@@ -237,26 +249,26 @@ def send_chat_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _validate_companion(payload.companion)
+    companion_row = _get_owned_companion(db, current_user, payload.companion)
 
     user_message = ChatMessage(
         user_id=current_user.id,
         sender="user",
         text=payload.message,
-        companion=payload.companion,
+        companion=companion_row.key,
     )
     db.add(user_message)
     db.commit()
     db.refresh(user_message)
 
     reply_text = _build_reply(
-        current_user, payload.message, db, user_message.id, payload.companion
+        current_user, payload.message, db, user_message.id, companion_row
     )
     reply = ChatMessage(
         user_id=current_user.id,
         sender="sobrad",
         text=reply_text,
-        companion=payload.companion,
+        companion=companion_row.key,
     )
     db.add(reply)
     db.commit()
@@ -281,7 +293,7 @@ def get_chat_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _validate_companion(companion)
+    _get_owned_companion(db, current_user, companion)
 
     messages = (
         db.query(ChatMessage)
@@ -301,7 +313,7 @@ def clear_chat_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _validate_companion(companion)
+    _get_owned_companion(db, current_user, companion)
 
     # Permanent, single-thread delete -- this is the "start fresh" /
     # "I don't want to remember this" control on the Chat screen, scoped to

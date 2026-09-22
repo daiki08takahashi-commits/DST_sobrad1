@@ -347,10 +347,67 @@ export async function getJournalPhotoBlobUrl(entryId) {
   return URL.createObjectURL(blob);
 }
 
+// ---- companions -------------------------------------------------------------
+// The two built-ins ('sobrad' | 'friends') plus any custom companions the
+// user has added -- see companions.js for how a raw row from these calls is
+// combined with a display avatar/greeting. GET also seeds the two built-ins
+// server-side the first time it's called for a user, so pages/Chat.jsx calls
+// it before anything else on that page needs the list.
+
+export function getCompanions() {
+  return request('/companions');
+}
+
+export function createCompanion({ name, personalityPrompt }) {
+  const body = { name };
+  if (personalityPrompt) body.personality_prompt = personalityPrompt;
+  return request('/companions', { method: 'POST', body });
+}
+
+export function updateCompanion(id, patch) {
+  return request(`/companions/${id}`, { method: 'PATCH', body: patch });
+}
+
+export function deleteCompanion(id) {
+  return request(`/companions/${id}`, { method: 'DELETE' });
+}
+
+// Same multipart convention as uploadJournalPhoto/uploadProfilePhoto above,
+// just with the field name the backend expects for this endpoint ('photo',
+// matching the existing journal-photo upload rather than 'file').
+export function uploadCompanionAvatar(id, file) {
+  const formData = new FormData();
+  formData.append('photo', file);
+  return requestMultipart(`/companions/${id}/avatar`, { method: 'POST', formData });
+}
+
+// Fetches a companion's avatar as a blob object URL, exactly like
+// getJournalPhotoBlobUrl above -- GET /api/companions/{id}/avatar needs the
+// Authorization header a plain <img src="..."> can't send. Caller owns the
+// returned URL and must revoke it with URL.revokeObjectURL() once it's no
+// longer needed.
+export async function getCompanionAvatarBlobUrl(id) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}/companions/${id}/avatar`, { headers });
+  } catch {
+    throw new ApiError("Couldn't reach the server. Please try again.", 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(`Couldn't load the photo (${response.status}).`, response.status);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 // ---- chat -----------------------------------------------------------------
-// Each companion ('sobrad' | 'friends') now has its own fully separate
-// thread server-side (see companions.js) -- every chat call is scoped to
-// one companion, never the whole user.
+// Each companion ('sobrad' | 'friends' | a custom companion's key) now has
+// its own fully separate thread server-side (see companions.js) -- every
+// chat call is scoped to one companion, never the whole user.
 
 export function getChatHistory(companion) {
   return request(`/chat?companion=${encodeURIComponent(companion)}`);
@@ -626,8 +683,10 @@ export function aiStudyTechnique({ subject, challenge } = {}) {
 
 // ---- global content search (Sidebar search bar) ----------------------------
 // Backs the search box in Sidebar.jsx: one call fans out server-side across
-// journal entries, tasks, subjects and goals for the current user. Same
-// query-string-building + fetch convention as getTasks above.
+// journal entries, tasks, subjects, goals and companions (built-in and
+// custom, including hidden ones -- a hidden companion must still be
+// findable here) for the current user. Same query-string-building + fetch
+// convention as getTasks above.
 
 export function search(q) {
   const params = [];

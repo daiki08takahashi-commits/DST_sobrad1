@@ -39,12 +39,16 @@ const NAV_ITEMS = [
 ];
 
 // Result groups in display order -- the keys match the /api/search response
-// shape exactly (see api.js's search()).
+// shape exactly (see api.js's search()). 'companions' covers both built-in
+// (Sõbrad/Friends) and custom companions, including hidden ones -- a hidden
+// companion's thread is only reachable via this search now, see goToResult
+// below for how a hit here deep-links straight into that thread.
 const SEARCH_GROUPS = [
   { key: 'journal', label: 'Journal', path: '/journal' },
   { key: 'tasks', label: 'Tasks', path: '/study' },
   { key: 'subjects', label: 'Subjects', path: '/study' },
   { key: 'goals', label: 'Goals', path: '/study' },
+  { key: 'companions', label: 'Friends', path: '/chat' },
 ];
 
 // Journal text can run long -- a short single-line preview reads much
@@ -57,6 +61,7 @@ function truncate(text, max = 60) {
 function resultLabel(group, item) {
   if (group === 'journal') return truncate(item.text);
   if (group === 'subjects') return item.name;
+  if (group === 'companions') return item.name;
   return item.title;
 }
 
@@ -115,11 +120,22 @@ export default function Sidebar({ collapsed, onToggle }) {
     };
   }, [open]);
 
-  function goToResult(path) {
+  // Same navigate(path, { state: {...} }) + useLocation().state mechanism
+  // Login.jsx already uses for its own post-login redirect (see
+  // location.state?.from there). A companion result needs the specific
+  // companion's key carried along so Chat.jsx can open straight into that
+  // thread -- including a hidden one, which this search is the only way to
+  // reach from the sidebar -- so only that group's navigate call gets a
+  // `state`; every other group behaves exactly as before.
+  function goToResult(path, group, item) {
     setOpen(false);
     setQuery('');
     setResults(null);
-    navigate(path);
+    if (group === 'companions') {
+      navigate(path, { state: { openCompanionKey: item.key } });
+    } else {
+      navigate(path);
+    }
   }
 
   const showDropdown = open && query.trim().length > 0;
@@ -175,7 +191,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                           key={`${key}-${item.id}`}
                           type="button"
                           className="search-result-row"
-                          onClick={() => goToResult(path)}
+                          onClick={() => goToResult(path, key, item)}
                         >
                           <span className="search-result-text">{resultLabel(key, item)}</span>
                           {key === 'tasks' && item.status && (

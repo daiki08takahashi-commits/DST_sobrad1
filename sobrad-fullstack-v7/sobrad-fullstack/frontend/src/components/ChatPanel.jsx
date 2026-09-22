@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
-import { getCompanion } from '../companions.js';
 
 // Chat thread + composer for ONE companion's thread, rendered by Chat.jsx
-// once a row in its companion list has been opened. `companion` ('sobrad'
-// or 'friends' -- see companions.js) is a required prop, not read from a
-// global setting: each companion is now a fully separate conversation (see
-// api.js's getChatHistory/sendChatMessage/clearChatHistory, all scoped to
-// one companion thread), so this panel only ever knows about the one thread
-// it was opened into. No Topbar here, that stays specific to Chat.jsx.
-export default function ChatPanel({ companion: companionKey }) {
+// once a row in its companion list has been opened. `companion` is a
+// required prop -- a *resolved* companion object (a live CompanionOut row
+// plus its display avatar/greeting/initial, built by
+// companions.js's resolveCompanion(); see Chat.jsx), not read from a global
+// setting or looked up here: each companion is a fully separate
+// conversation (see api.js's getChatHistory/sendChatMessage/
+// clearChatHistory, all scoped to one companion thread via `companion.key`),
+// so this panel only ever knows about the one thread it was opened into. No
+// Topbar here, that stays specific to Chat.jsx.
+export default function ChatPanel({ companion }) {
   const showToast = useToast();
-  const companion = getCompanion(companionKey);
   // `messages` only ever holds real, persisted history -- an empty array
   // means "no history yet", and the greeting is layered on at render time
   // below (from `displayMessages`) rather than stored in state.
@@ -126,9 +127,14 @@ export default function ChatPanel({ companion: companionKey }) {
             const fromSobrad = m.sender !== 'user';
             return (
               <div className={`chat-bubble-row from-${fromSobrad ? 'sobrad' : 'user'}`} key={m.id}>
-                {fromSobrad && (
-                  <img className="chat-bubble-avatar" src={companion.avatar} alt="" aria-hidden="true" />
-                )}
+                {fromSobrad &&
+                  (companion.avatar ? (
+                    <img className="chat-bubble-avatar" src={companion.avatar} alt="" aria-hidden="true" />
+                  ) : (
+                    <span className="chat-bubble-avatar avatar-initial" aria-hidden="true">
+                      {companion.initial}
+                    </span>
+                  ))}
                 <div className={`chat-bubble in from-${fromSobrad ? 'sobrad' : 'user'}`}>
                   <span className="chat-bubble-name">{fromSobrad ? companion.name : 'You'}</span>
                   <span>{m.text}</span>

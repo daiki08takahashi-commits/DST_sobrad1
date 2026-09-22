@@ -1,19 +1,22 @@
 """Global "search everything" endpoint: a single content-search bar across
-Journal entries, Tasks, and Study subjects/goals, all strictly scoped to the
-logged-in user. See schemas.SearchResultsOut for the response shape.
+Journal entries, Tasks, Study subjects/goals, and Companions (chat
+"friends"), all strictly scoped to the logged-in user. See
+schemas.SearchResultsOut for the response shape.
 
 Each category is an independent query, filtered by the current user's
 ownership and capped at 20 results, newest first -- same ilike/or_ matching
 pattern as routers/tasks.py's list_tasks(q=...) and, for tasks specifically,
-the same default exclusion of archived tasks. Journal/Task results are built
-via the existing _journal_entry_out/_task_out helpers (imported from their
-own routers, same cross-router-import style routers/family.py uses for
-study.py's _compute_analysis/_compute_insights) so this endpoint can never
-drift from what those routers already return. Subjects/goals have no
-existing single-row helper, so SubjectOut/GoalOut are built directly here;
-GoalOut deliberately gets steps=[] (no GoalStep query) to keep this response
-light, same rationale JournalEntryOut documents for omitting photo bytes from
-list views.
+the same default exclusion of archived tasks. Journal/Task/Companion results
+are built via the existing _journal_entry_out/_task_out/_companion_out
+helpers (imported from their own routers, same cross-router-import style
+routers/family.py uses for study.py's _compute_analysis/_compute_insights)
+so this endpoint can never drift from what those routers already return.
+Subjects/goals have no existing single-row helper, so SubjectOut/GoalOut are
+built directly here; GoalOut deliberately gets steps=[] (no GoalStep query)
+to keep this response light, same rationale JournalEntryOut documents for
+omitting photo bytes from list views. Companion results deliberately include
+hidden=True companions -- hiding a companion only removes it from the main
+chat list, not from search, so its thread stays reachable.
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
@@ -21,7 +24,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Goal, JournalEntry, Subject, Task, User
+from app.models import Companion, Goal, JournalEntry, Subject, Task, User
+from app.routers.companions import _companion_out
 from app.routers.journal import _journal_entry_out
 from app.routers.tasks import _task_out
 from app.schemas import SearchResultsOut, SubjectOut, GoalOut
@@ -87,6 +91,18 @@ def search_everything(
         .all()
     )
 
+    # Deliberately does NOT filter out hidden=True companions -- a hidden
+    # chat thread must still be findable by name here, that's the whole
+    # point of the hide feature (it hides from the main chat list, not from
+    # the user entirely).
+    companions = (
+        db.query(Companion)
+        .filter(Companion.user_id == current_user.id, Companion.name.ilike(like))
+        .order_by(Companion.created_at.desc(), Companion.id.desc())
+        .limit(RESULTS_LIMIT)
+        .all()
+    )
+
     return SearchResultsOut(
         journal=[_journal_entry_out(e) for e in journal_entries],
         tasks=[_task_out(db, t) for t in tasks],
@@ -106,4 +122,5 @@ def search_everything(
             )
             for g in goals
         ],
+        companions=[_companion_out(c) for c in companions],
     )

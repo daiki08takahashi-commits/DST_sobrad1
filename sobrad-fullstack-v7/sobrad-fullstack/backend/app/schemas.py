@@ -193,6 +193,72 @@ class ChatClearOut(BaseModel):
     deleted: bool
 
 
+# ---- Companions ("friends") ----
+# See models.py's Companion docstring and routers/companions.py for the full
+# feature rationale. A companion is either one of the two auto-seeded
+# built-in personas (is_default=True, name/personality locked) or one the
+# user added themselves (is_default=False, fully editable).
+
+MAX_PERSONALITY_PROMPT_LENGTH = 300
+
+
+class CompanionOut(BaseModel):
+    id: int
+    key: str
+    name: str
+    personality_prompt: Optional[str] = None
+    # Whether an avatar photo is set -- never the image bytes/a data URL
+    # here, same rationale as JournalEntryOut.has_photo above. Fetched
+    # separately via GET /api/companions/{id}/avatar when actually viewed.
+    has_avatar: bool = False
+    hidden: bool
+    is_default: bool
+    created_at: datetime
+
+
+class CompanionCreate(BaseModel):
+    name: str
+    personality_prompt: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("name must not be empty")
+        return v.strip()
+
+    @field_validator("personality_prompt")
+    @classmethod
+    def personality_prompt_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) > MAX_PERSONALITY_PROMPT_LENGTH:
+            raise ValueError(
+                f"personality_prompt must be at most {MAX_PERSONALITY_PROMPT_LENGTH} characters"
+            )
+        return v
+
+
+class CompanionUpdate(BaseModel):
+    name: Optional[str] = None
+    personality_prompt: Optional[str] = None
+    hidden: Optional[bool] = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not v.strip():
+            raise ValueError("name must not be empty")
+        return v.strip() if v is not None else v
+
+    @field_validator("personality_prompt")
+    @classmethod
+    def personality_prompt_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) > MAX_PERSONALITY_PROMPT_LENGTH:
+            raise ValueError(
+                f"personality_prompt must be at most {MAX_PERSONALITY_PROMPT_LENGTH} characters"
+            )
+        return v
+
+
 # ---- Study: subjects ----
 
 class SubjectCreate(BaseModel):
@@ -810,3 +876,4 @@ class SearchResultsOut(BaseModel):
     tasks: List[TaskOut] = []
     subjects: List[SubjectOut] = []
     goals: List[GoalOut] = []
+    companions: List[CompanionOut] = []
