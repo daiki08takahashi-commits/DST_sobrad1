@@ -217,113 +217,122 @@ export default function Study() {
     setTab('focus');
   }
 
-  // Emergency Focus Mode hides the app's normal chrome entirely -- no
+  // Any running Focus session hides the app's normal chrome entirely -- no
   // Topbar, no tab bar, no sidebar, no emergency FAB -- for as long as it's
   // running (see FocusTab's minimal view and body.focus-minimal in
-  // index.css). That's a genuine full-screen takeover, so it short-circuits
-  // Study's usual Topbar-plus-tabs render rather than living inside it.
-  if (tab === 'focus' && focusMinimal) {
-    return <FocusTab entry={focusEntry} onMinimalChange={setFocusMinimal} />;
-  }
-
+  // index.css). That's a genuine full-screen takeover, but FocusTab must
+  // stay mounted at the exact same position in the tree throughout --
+  // otherwise React's positional reconciliation treats the minimal-mode
+  // FocusTab as a brand-new element and remounts it, losing its in-progress
+  // countdown state (see the flicker this caused before: a full unmount of
+  // an already-running session flashes "Checking for a session..." again
+  // mid-transition). So Topbar and the tab bar are hidden with their own
+  // `{!focusMinimal && ...}` conditionals -- both fixed-position siblings
+  // that sit above the tab-content conditionals -- rather than swapping in
+  // a differently-shaped return. Emergency Focus (see FOCUS_EMERGENCY_MODE
+  // below) is just the auto-start variant of this -- it skips the picker
+  // and begins running immediately -- not the only path that reaches this
+  // full-screen state.
   return (
     <>
-      <Topbar title="Study" />
-      <div className="screen-inner study-screen">
-        <div className="study-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'today'}
-            className={`study-tab${tab === 'today' ? ' active' : ''}`}
-            onClick={() => setTab('today')}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'calendar'}
-            className={`study-tab${tab === 'calendar' ? ' active' : ''}`}
-            onClick={() => setTab('calendar')}
-          >
-            Calendar
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'goals'}
-            className={`study-tab${tab === 'goals' ? ' active' : ''}`}
-            onClick={() => setTab('goals')}
-          >
-            Goals
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'grades'}
-            className={`study-tab${tab === 'grades' ? ' active' : ''}`}
-            onClick={() => setTab('grades')}
-          >
-            Grades
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'tasks'}
-            className={`study-tab${tab === 'tasks' ? ' active' : ''}`}
-            onClick={() => setTab('tasks')}
-          >
-            Tasks
-          </button>
-          {/* Focus Session Timer + Emergency Focus Mode -- used to be its own
-              /focus route, see FocusTab below and the note on focusEntry
-              above. */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'focus'}
-            className={`study-tab${tab === 'focus' ? ' active' : ''}`}
-            onClick={openFocusTab}
-          >
-            Focus
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'deadlines'}
-            className={`study-tab${tab === 'deadlines' ? ' active' : ''}`}
-            onClick={() => setTab('deadlines')}
-          >
-            Deadlines
-          </button>
-          {/* AI Weekly Review -- see ReviewTab below and backend
-              routers/review.py for the feature. Added as its own tab,
-              alongside whatever else lands here, rather than folded into an
-              existing one. */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'review'}
-            className={`study-tab${tab === 'review' ? ' active' : ''}`}
-            onClick={() => setTab('review')}
-          >
-            Review
-          </button>
-          {/* AI Study Tools -- see AiToolsTab below and backend
-              routers/ai_tools.py. Own tab, own sub-picker inside it (Explain /
-              Quiz / Flashcards / Summarize / Study Plan / Explain a Mistake /
-              Study Technique) rather than one tab per tool. */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'ai-tools'}
-            className={`study-tab${tab === 'ai-tools' ? ' active' : ''}`}
-            onClick={() => setTab('ai-tools')}
-          >
-            AI Tools
-          </button>
-        </div>
+      {!focusMinimal && <Topbar title="Study" />}
+      <div className={`screen-inner study-screen${focusMinimal ? ' study-screen-minimal' : ''}`}>
+        {!focusMinimal && (
+          <div className="study-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'today'}
+              className={`study-tab${tab === 'today' ? ' active' : ''}`}
+              onClick={() => setTab('today')}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'calendar'}
+              className={`study-tab${tab === 'calendar' ? ' active' : ''}`}
+              onClick={() => setTab('calendar')}
+            >
+              Calendar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'goals'}
+              className={`study-tab${tab === 'goals' ? ' active' : ''}`}
+              onClick={() => setTab('goals')}
+            >
+              Goals
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'grades'}
+              className={`study-tab${tab === 'grades' ? ' active' : ''}`}
+              onClick={() => setTab('grades')}
+            >
+              Grades
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'tasks'}
+              className={`study-tab${tab === 'tasks' ? ' active' : ''}`}
+              onClick={() => setTab('tasks')}
+            >
+              Tasks
+            </button>
+            {/* Focus Session Timer + Emergency Focus Mode -- used to be its own
+                /focus route, see FocusTab below and the note on focusEntry
+                above. */}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'focus'}
+              className={`study-tab${tab === 'focus' ? ' active' : ''}`}
+              onClick={openFocusTab}
+            >
+              Focus
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'deadlines'}
+              className={`study-tab${tab === 'deadlines' ? ' active' : ''}`}
+              onClick={() => setTab('deadlines')}
+            >
+              Deadlines
+            </button>
+            {/* AI Weekly Review -- see ReviewTab below and backend
+                routers/review.py for the feature. Added as its own tab,
+                alongside whatever else lands here, rather than folded into an
+                existing one. */}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'review'}
+              className={`study-tab${tab === 'review' ? ' active' : ''}`}
+              onClick={() => setTab('review')}
+            >
+              Review
+            </button>
+            {/* AI Study Tools -- see AiToolsTab below and backend
+                routers/ai_tools.py. Own tab, own sub-picker inside it (Explain /
+                Quiz / Flashcards / Summarize / Study Plan / Explain a Mistake /
+                Study Technique) rather than one tab per tool. */}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'ai-tools'}
+              className={`study-tab${tab === 'ai-tools' ? ' active' : ''}`}
+              onClick={() => setTab('ai-tools')}
+            >
+              AI Tools
+            </button>
+          </div>
+        )}
 
         {tab === 'today' && <TodayTab onLaunchFocus={launchFocus} />}
         {tab === 'calendar' && <CalendarTab subjects={subjects} />}
@@ -519,9 +528,10 @@ function playGentleChime() {
 // `entry` is `{ taskId, emergency }` (or null), set once by Study's
 // launchFocus/openFocusTab and read only on mount below -- exactly how the
 // old ?task=/?emergency=1 query params were read once by Focus.jsx.
-// `onMinimalChange` lets Study's top-level render know when Emergency Focus
-// Mode is showing its full-screen minimal view, so it can skip rendering
-// its own Topbar + tab bar around it (see focusMinimal in Study() above).
+// `onMinimalChange` lets Study's top-level render know when Focus is
+// showing its full-screen minimal view (any running session, not only an
+// Emergency Focus one), so it can skip rendering its own Topbar + tab bar
+// around it (see focusMinimal in Study() above).
 function FocusTab({ entry, onMinimalChange }) {
   const navigate = useNavigate();
   const showToast = useToast();
@@ -537,6 +547,15 @@ function FocusTab({ entry, onMinimalChange }) {
   const [session, setSession] = useState(null);
   const [remaining, setRemaining] = useState(0);
   const [minimal, setMinimal] = useState(false);
+  // Distinguishes the true Emergency Focus auto-start path from an ordinary
+  // session, purely for the minimal view's eyebrow copy below -- session.mode
+  // can't be used for this since FOCUS_EMERGENCY_MODE reuses the same mode id
+  // as the ordinary Pomodoro 25/5 option. Only ever set true right alongside
+  // the two emergency beginSession calls; left false everywhere else,
+  // including when resuming an already-running session, since there's no way
+  // to know after the fact whether that session was originally started as an
+  // emergency one.
+  const [isEmergencySession, setIsEmergencySession] = useState(false);
   const [taskTitle, setTaskTitle] = useState(null);
   const [selectedMode, setSelectedMode] = useState('pomodoro_25_5');
   const [customMinutes, setCustomMinutes] = useState('30');
@@ -649,10 +668,15 @@ function FocusTab({ entry, onMinimalChange }) {
               })
               .catch(() => {});
           }
+          // Reopening the Focus tab (or "Continue Session") while a session
+          // is already running goes straight to the full-screen view too,
+          // same as a freshly-started one -- see minimal/focusMinimal above.
+          setMinimal(true);
           return;
         }
         if (isEmergencyParam && !emergencyKickedOffRef.current) {
           emergencyKickedOffRef.current = true;
+          setIsEmergencySession(true);
           beginSession(FOCUS_EMERGENCY_MODE, FOCUS_EMERGENCY_MINUTES, null, true);
           return;
         }
@@ -671,12 +695,14 @@ function FocusTab({ entry, onMinimalChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Emergency Focus Mode hides the app's normal chrome (sidebar + emergency
-  // FAB, and -- now that Focus lives inside Study -- Study's own Topbar +
-  // tab bar too, via onMinimalChange/focusMinimal above) for as long as
-  // it's active -- a body class flips CSS rules added alongside the rest of
-  // this file's styles (see .focus-minimal-view / body.focus-minimal in
-  // index.css).
+  // A running Focus session hides the app's normal chrome (sidebar +
+  // emergency FAB, and -- now that Focus lives inside Study -- Study's own
+  // Topbar + tab bar too, via onMinimalChange/focusMinimal above) for as
+  // long as it's active -- a body class flips CSS rules added alongside the
+  // rest of this file's styles (see .focus-minimal-view / body.focus-minimal
+  // in index.css). Emergency Focus is just the auto-start variant of this --
+  // it skips the picker and begins running immediately -- not the only
+  // thing that triggers it.
   useEffect(() => {
     document.body.classList.toggle('focus-minimal', minimal);
     onMinimalChange?.(minimal);
@@ -689,10 +715,16 @@ function FocusTab({ entry, onMinimalChange }) {
     const mode = FOCUS_MODES.find((m) => m.id === selectedMode) || FOCUS_MODES[0];
     const minutes =
       mode.id === 'custom' ? Math.max(1, Math.min(180, parseInt(customMinutes, 10) || 25)) : mode.minutes;
-    beginSession(mode.id, minutes, taskIdParam ? Number(taskIdParam) : null, false);
+    // Explicitly false here (not just relying on the initial state) so that
+    // starting a normal session via the picker after an earlier emergency
+    // one -- e.g. via "Start another session" -- doesn't keep showing the
+    // "Emergency Focus" label from that earlier session.
+    setIsEmergencySession(false);
+    beginSession(mode.id, minutes, taskIdParam ? Number(taskIdParam) : null, true);
   }
 
   function handleEmergency() {
+    setIsEmergencySession(true);
     beginSession(FOCUS_EMERGENCY_MODE, FOCUS_EMERGENCY_MINUTES, null, true);
   }
 
@@ -737,15 +769,17 @@ function FocusTab({ entry, onMinimalChange }) {
     );
   }
 
-  // Emergency / minimal mode: deliberately nothing but the countdown, the
-  // task (if any), and a Stop button -- no Topbar, no tab bar, no sidebar,
-  // no FAB. Study's top-level render returns this directly (see
-  // focusMinimal in Study() above) instead of wrapping it in the usual
-  // Topbar + tabs.
+  // Minimal mode: deliberately nothing but the countdown, the task (if any),
+  // and a Stop button -- no Topbar, no tab bar, no sidebar, no FAB. Any
+  // running session reaches this now, not just Emergency Focus -- Study's
+  // top-level render returns this directly (see focusMinimal in Study()
+  // above) instead of wrapping it in the usual Topbar + tabs. The eyebrow
+  // only calls out "Emergency Focus" for the true emergency auto-start path
+  // (isEmergencySession); an ordinary session gets the calmer, generic label.
   if (phase === 'running' && minimal) {
     return (
       <div className="focus-minimal-view">
-        <p className="focus-minimal-eyebrow">Emergency Focus</p>
+        <p className="focus-minimal-eyebrow">{isEmergencySession ? 'Emergency Focus' : 'Focus'}</p>
         {taskTitle && <p className="focus-minimal-task">{taskTitle}</p>}
         {ring}
         <button type="button" className="btn btn-outline focus-minimal-stop" onClick={handleStop}>

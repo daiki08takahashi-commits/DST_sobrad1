@@ -3398,9 +3398,10 @@ body.low-stimulation {
    .study-focus takes the place of the old page's .screen-center wrapper --
    it centres the picker/running/done card the same way, just without a
    Topbar of its own (Study's own Topbar covers it). The full-screen
-   .focus-minimal-view below is unaffected -- Study's top-level render
-   returns FocusTab directly (no Topbar/tabs) while it's active, so that
-   still gets the whole viewport exactly as it did as a standalone route. */
+   .focus-minimal-view below stays mounted inside Study's own
+   .screen-inner (see .study-screen-minimal further down and the note in
+   Study.jsx) rather than being returned in place of it, so FocusTab never
+   unmounts/remounts when the countdown takes over the screen. */
 .study-focus {
   display: flex;
   flex-direction: column;
@@ -3517,10 +3518,30 @@ body.low-stimulation {
   font-variant-numeric: tabular-nums;
 }
 
-/* Emergency Focus Mode: a full-viewport, chrome-free view -- no Topbar, no
+/* .screen-inner now stays FocusTab's permanent parent (see Study.jsx --
+   FocusTab is never unmounted/remounted when focusMinimal toggles, only
+   Topbar and .study-tabs are hidden around it) so that its own countdown
+   state survives the transition into full-screen. That means
+   .focus-minimal-view below renders *inside* .screen-inner's own padded
+   box instead of being the page's bare root. .screen-inner's padding
+   (28px/var(--gutter)/110px, or the desktop variant) would stack with
+   .focus-minimal-view's own min-height: 100vh + padding, pushing the
+   countdown off-centre and adding extra scroll -- so strip it back to
+   nothing here and let .focus-minimal-view alone own the full-bleed
+   layout, same as when it was the unwrapped root. Two-class selector
+   beats the single-class .screen-inner rules above (including the
+   desktop media-query ones), so this wins regardless of source order. */
+.screen-inner.study-screen-minimal {
+  padding: 0;
+  gap: 0;
+}
+
+/* Focus minimal view: a full-viewport, chrome-free view -- no Topbar, no
    sidebar, no emergency FAB (see body.focus-minimal below, toggled by
-   Focus.jsx while this is showing). Just the countdown, the task if any,
-   and Stop. */
+   Study.jsx's FocusTab while this is showing). Just the countdown, the task
+   if any, and Stop. Shown for any running Focus session now, not only the
+   Emergency Focus auto-start path -- see FocusTab's minimal state in
+   Study.jsx. */
 .focus-minimal-view {
   min-height: 100vh;
   width: 100%;

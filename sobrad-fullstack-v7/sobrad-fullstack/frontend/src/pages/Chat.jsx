@@ -54,9 +54,10 @@ function formatRowTimestamp(iso) {
 // The row itself is a <button> (opens the thread), with a small "more
 // options" kebab menu as a sibling underneath -- kept out of the row
 // button itself since a <button> can't contain further interactive
-// controls. The menu holds Hide/Show (offered for every companion) plus
-// Edit/Delete for a custom (non-default) one only, since the backend
-// rejects a rename/personality-edit/delete on a built-in with a 400.
+// controls. The menu holds Hide/Show and Delete for every companion,
+// built-in or custom, plus Edit for a custom (non-default) one only,
+// since the backend still rejects a rename/personality-edit on a
+// built-in with a 400 -- deletion has no such restriction.
 //
 // Only one row's menu is open at a time: `menuOpen` is driven by the
 // parent Chat()'s single `openMenuKey`, so opening a new row's menu
@@ -183,19 +184,17 @@ function CompanionRow({
               >
                 {hidingBusy ? 'Working…' : companion.hidden ? 'Show' : 'Hide'}
               </button>
-              {!companion.is_default && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="chat-list-row-menu-item"
-                  onClick={() => {
-                    onCloseMenu();
-                    onDeleteRequest();
-                  }}
-                >
-                  Delete
-                </button>
-              )}
+              <button
+                type="button"
+                role="menuitem"
+                className="chat-list-row-menu-item"
+                onClick={() => {
+                  onCloseMenu();
+                  onDeleteRequest();
+                }}
+              >
+                Delete
+              </button>
             </div>
           )}
         </div>

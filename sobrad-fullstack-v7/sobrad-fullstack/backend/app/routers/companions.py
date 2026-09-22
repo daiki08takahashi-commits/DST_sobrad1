@@ -39,29 +39,41 @@ DEFAULT_COMPANIONS = [("sobrad", "Sõbrad"), ("friends", "Friends")]
 
 
 def _ensure_default_companions(db: Session, user: User) -> None:
-    """Idempotently create the user's two built-in companion rows if either
-    is missing. Cheap and safe to call defensively at the top of any
-    companions-listing/creating endpoint -- keeps the seeding logic in one
-    place rather than requiring a separate registration-time hook."""
-    existing_keys = {
-        key
-        for (key,) in db.query(Companion.key).filter(Companion.user_id == user.id).all()
-    }
-    inserted = False
+    """Seed the user's two built-in companion rows, but only when they have
+    NO companion rows at all yet -- not "seed whichever default key is
+    currently missing". Both defaults are deletable now (see
+    delete_companion), so we can no longer use "is this key missing" as the
+    seed trigger: a user who deliberately deletes one default (say Sõbrad)
+    still has a companion row (Friends, or any custom companion of their
+    own), so `has_any` is True and this is a no-op -- Sõbrad stays deleted
+    instead of silently reappearing on their next GET/POST.
+
+    This still covers both cases the old logic existed for: a brand-new
+    user has zero companion rows on their very first call, so both defaults
+    get seeded exactly as before; an existing pre-feature user being
+    backfilled also has zero rows on their first post-feature visit, so
+    they're backfilled exactly as before too.
+
+    Accepted edge case: a user who deletes BOTH defaults and has no custom
+    companions of their own is back to zero rows, so their next visit WILL
+    reseed both defaults from scratch (fresh, empty history). That's a
+    reasonable reset rather than a bug -- their companion list was
+    genuinely empty -- and not worth a bigger fix (e.g. a tombstone/
+    deleted-keys table) for what's being asked here."""
+    has_any = db.query(Companion.id).filter(Companion.user_id == user.id).first() is not None
+    if has_any:
+        return
     for key, name in DEFAULT_COMPANIONS:
-        if key not in existing_keys:
-            db.add(
-                Companion(
-                    user_id=user.id,
-                    key=key,
-                    name=name,
-                    is_default=True,
-                    hidden=False,
-                )
+        db.add(
+            Companion(
+                user_id=user.id,
+                key=key,
+                name=name,
+                is_default=True,
+                hidden=False,
             )
-            inserted = True
-    if inserted:
-        db.commit()
+        )
+    db.commit()
 
 
 def _companion_out(c: Companion) -> CompanionOut:
@@ -160,12 +172,13 @@ def delete_companion(
     db: Session = Depends(get_db),
 ):
     companion = _get_owned_companion(db, current_user, companion_id)
-    if companion.is_default:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Sõbrad and Friends can't be deleted — you can hide them instead.",
-        )
 
+    # Defaults are deletable too now, same as a custom companion -- only
+    # renaming/re-personalising a default is still blocked (see
+    # update_companion). A deleted default is NOT reseeded on the next
+    # visit unless the user's companion list is completely empty again;
+    # see _ensure_default_companions for why that's the right trigger.
+    #
     # This companion's entire chat history goes with it -- there'd be no way
     # to reach it afterward once the Companion row (and its key) is gone.
     # Mirrors tasks.py's _delete_task_cascade bulk-delete-then-commit style.
