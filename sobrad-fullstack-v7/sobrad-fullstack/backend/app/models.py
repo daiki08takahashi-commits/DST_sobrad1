@@ -85,9 +85,6 @@ class User(Base):
     journal_entries = relationship(
         "JournalEntry", back_populates="user", cascade="all, delete-orphan"
     )
-    mood_entries = relationship(
-        "MoodEntry", back_populates="user", cascade="all, delete-orphan"
-    )
     breathing_sessions = relationship(
         "BreathingSession", back_populates="user", cascade="all, delete-orphan"
     )
@@ -139,17 +136,6 @@ class JournalEntry(Base):
     photo_content_type = Column(String, nullable=True)
 
     user = relationship("User", back_populates="journal_entries")
-
-
-class MoodEntry(Base):
-    __tablename__ = "mood_entries"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    word = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
-
-    user = relationship("User", back_populates="mood_entries")
 
 
 class BreathingSession(Base):
@@ -380,7 +366,7 @@ class FocusSession(Base):
 # token, that lets a linked parent view a READ-ONLY copy of the child's
 # Study data (subject averages/trends + the AI-narrated insights summary +
 # the raw trend series -- see routers/family.py). Deliberately does NOT gate
-# anything else -- journal, mood, chat, focus, emergency and progress stay
+# anything else -- journal, chat, focus, emergency and progress stay
 # completely private and are never exposed through this feature.
 # ---------------------------------------------------------------------------
 

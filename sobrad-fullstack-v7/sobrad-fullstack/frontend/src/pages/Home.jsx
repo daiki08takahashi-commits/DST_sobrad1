@@ -8,9 +8,7 @@ import {
   BreatheIcon,
   ChatIcon,
   JournalIcon,
-  MoodIcon,
   MoonIcon,
-  ProgressIcon,
   StudyIcon,
 } from '../components/icons.jsx';
 
@@ -68,8 +66,8 @@ export default function Home() {
           {/* Small circles sit in a ring around this container (see .nav-cluster
               in index.css) -- order here matches the CSS's nth-child angles,
               starting with Sleep at the top and going clockwise. Breathe is
-              the 7th (last) child so it doesn't shift the nth-child(1..6)
-              angle mapping for the six small circles -- it's positioned dead
+              the 5th (last) child so it doesn't shift the nth-child(1..4)
+              angle mapping for the four small circles -- it's positioned dead
               centre by its own CSS rule instead of a ring angle. */}
           <div className="nav-cluster">
             <button className="nav-circle-small" onClick={() => navigate('/insomnia')} aria-label="Sleep">
@@ -83,14 +81,6 @@ export default function Home() {
             <button className="nav-circle-small" onClick={() => navigate('/chat')} aria-label="Chat">
               <span className="icon"><ChatIcon /></span>
               <span>Chat</span>
-            </button>
-            <button className="nav-circle-small" onClick={() => navigate('/mood')} aria-label="Mood">
-              <span className="icon"><MoodIcon /></span>
-              <span>Mood</span>
-            </button>
-            <button className="nav-circle-small" onClick={() => navigate('/progress')} aria-label="Progress">
-              <span className="icon"><ProgressIcon /></span>
-              <span>Progress</span>
             </button>
             <button className="nav-circle-small" onClick={() => navigate('/study')} aria-label="Study">
               <span className="icon"><StudyIcon /></span>

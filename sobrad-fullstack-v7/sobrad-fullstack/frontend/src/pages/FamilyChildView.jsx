@@ -16,7 +16,7 @@ const FALLBACK_THRESHOLD = 70;
 // Read-only view of a linked child's Study record, for the parent. Deliberately
 // shows only what GET /api/family/{childId}/study returns -- subject
 // averages/trends and the AI trend summary -- and nothing from Journal,
-// Mood, Chat, Focus, Emergency or Progress, which this endpoint never
+// Chat, Focus or Emergency, which this endpoint never
 // includes in the first place. Reuses Study.jsx's own chart components
 // as-is (exported from there for this) so a shared child's chart looks
 // identical to what they see themselves.

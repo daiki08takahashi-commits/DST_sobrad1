@@ -364,16 +364,6 @@ export function clearChatHistory(companion) {
   return request(`/chat?companion=${encodeURIComponent(companion)}`, { method: 'DELETE' });
 }
 
-// ---- mood -----------------------------------------------------------------
-
-export function getMoodEntries(limit = 10) {
-  return request(`/mood?limit=${limit}`);
-}
-
-export function createMoodEntry(word) {
-  return request('/mood', { method: 'POST', body: { word } });
-}
-
 // ---- breathing sessions ------------------------------------------------
 
 export function createBreathingSession(minutes) {
@@ -648,9 +638,8 @@ export function search(q) {
 
 // ---- family sharing ----------------------------------------------------
 // Lets a student invite a parent to see their Study data (grades/trends/AI
-// insight summary only -- never Journal, Mood, Chat, Focus, Emergency or
-// Progress) in a read-only view. See FamilyJoin.jsx / Family.jsx /
-// FamilyChildView.jsx.
+// insight summary only -- never Journal, Chat, Focus or Emergency) in a
+// read-only view. See FamilyJoin.jsx / Family.jsx / FamilyChildView.jsx.
 
 export function sendFamilyInvite(parentEmail) {
   return request('/family/invite', { method: 'POST', body: { parent_email: parentEmail } });

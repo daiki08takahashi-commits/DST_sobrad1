@@ -666,11 +666,11 @@ textarea:focus-visible {
   opacity: 0.75;
 }
 
-/* A well-organised ring, not the old staggered flex-wrap cluster: the six
-   small circles sit evenly spaced (360/6 = 60deg apart) around this
+/* A well-organised ring, not the old staggered flex-wrap cluster: the four
+   small circles sit evenly spaced (360/4 = 90deg apart) around this
    container's centre, starting with Sleep at the top (closest to Breathe,
    angle 0deg = 12 o'clock) and going clockwise -- Sleep, Journal, Chat,
-   Mood, Progress, Study -- matching the child order in Home.jsx.
+   Study -- matching the child order in Home.jsx.
    `position: relative` + explicit width/height keeps this box's own size
    in normal flow (so it doesn't collapse to 0 height and get overlapped by
    whatever renders below it), and each small circle is positioned
@@ -681,7 +681,7 @@ textarea:focus-visible {
    circle's circumference while keeping its own icon/label upright instead
    of rotated. Radius 105px keeps the 82px circles comfortably clear of
    each other (adjacent circles are `radius`px apart centre-to-centre at a
-   60deg spacing, i.e. ~23px of edge-to-edge gap here) while still reading
+   90deg spacing, i.e. plenty of edge-to-edge gap here) while still reading
    as a tight, deliberate ring under the Breathe circle. */
 .nav-cluster {
   position: relative;
@@ -711,25 +711,17 @@ textarea:focus-visible {
 .nav-circle-small:nth-child(1) {
   transform: rotate(0deg) translate(0, -105px) rotate(0deg);
 }
-/* Journal -- 60deg clockwise. */
+/* Journal -- 90deg clockwise, 3 o'clock. */
 .nav-circle-small:nth-child(2) {
-  transform: rotate(60deg) translate(0, -105px) rotate(-60deg);
+  transform: rotate(90deg) translate(0, -105px) rotate(-90deg);
 }
-/* Chat -- 120deg clockwise. */
+/* Chat -- 180deg, directly opposite Sleep, 6 o'clock. */
 .nav-circle-small:nth-child(3) {
-  transform: rotate(120deg) translate(0, -105px) rotate(-120deg);
-}
-/* Mood -- 180deg, directly opposite Sleep. */
-.nav-circle-small:nth-child(4) {
   transform: rotate(180deg) translate(0, -105px) rotate(-180deg);
 }
-/* Progress -- 240deg clockwise. */
-.nav-circle-small:nth-child(5) {
-  transform: rotate(240deg) translate(0, -105px) rotate(-240deg);
-}
-/* Study -- 300deg clockwise. */
-.nav-circle-small:nth-child(6) {
-  transform: rotate(300deg) translate(0, -105px) rotate(-300deg);
+/* Study -- 270deg clockwise, 9 o'clock. */
+.nav-circle-small:nth-child(4) {
+  transform: rotate(270deg) translate(0, -105px) rotate(-270deg);
 }
 .nav-circle-small .icon {
   width: 20px;
@@ -762,19 +754,13 @@ textarea:focus-visible {
     transform: rotate(0deg) translate(0, -88px) rotate(0deg);
   }
   .nav-circle-small:nth-child(2) {
-    transform: rotate(60deg) translate(0, -88px) rotate(-60deg);
+    transform: rotate(90deg) translate(0, -88px) rotate(-90deg);
   }
   .nav-circle-small:nth-child(3) {
-    transform: rotate(120deg) translate(0, -88px) rotate(-120deg);
-  }
-  .nav-circle-small:nth-child(4) {
     transform: rotate(180deg) translate(0, -88px) rotate(-180deg);
   }
-  .nav-circle-small:nth-child(5) {
-    transform: rotate(240deg) translate(0, -88px) rotate(-240deg);
-  }
-  .nav-circle-small:nth-child(6) {
-    transform: rotate(300deg) translate(0, -88px) rotate(-300deg);
+  .nav-circle-small:nth-child(4) {
+    transform: rotate(270deg) translate(0, -88px) rotate(-270deg);
   }
   /* Ring radius shrank to 88px here (36px small-circle radius, so the
      small circles' near edge sits 52px from centre) -- shrink Breathe to
@@ -1241,119 +1227,19 @@ textarea:focus-visible {
   color: var(--muted-2);
 }
 
-/* ================= MOOD ================= */
-.mood-intro {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-.mood-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.mood-pill {
-  flex: 1 1 calc(33.333% - 10px);
-  min-width: 94px;
-  background: var(--card);
-  border: 1.5px solid var(--card-border);
-  border-radius: 16px;
-  padding: 16px 10px;
-  text-align: center;
-  font-family: var(--font-label);
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--ink);
-  box-shadow: 0 8px 18px var(--shadow-soft);
-  transition: transform 0.15s ease;
-}
-.mood-pill:active:not(:disabled) {
-  transform: scale(0.96);
-}
-.mood-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.mood-card {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.mood-card-date {
-  font-family: var(--font-label);
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--muted);
-}
-.mood-card-word {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 14.5px;
-  color: var(--primary);
-}
+/* ================= SHARED EMPTY-STATE TEXT =================
+   .mood-empty started life as the Mood page's own "nothing logged yet"
+   style; now that Mood is gone it's just the app's shared quiet
+   empty-state paragraph, reused across Study's tabs (Goals/Grades/Tasks/
+   Deadlines/Review), Family and Journal. Kept under its original name
+   rather than renamed, since renaming a class used this widely is a
+   larger, unrelated change. */
 .mood-empty {
   font-family: var(--font-body);
   font-size: 13.5px;
   color: var(--muted);
   text-align: center;
   padding: 8px 0;
-}
-
-/* ================= PROGRESS ================= */
-.progress-note {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.6;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 14px 16px;
-}
-.progress-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.progress-row {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 18px;
-  padding: 18px 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 10px 22px var(--shadow-soft);
-}
-.progress-row .icon {
-  color: var(--primary);
-  width: 24px;
-  height: 24px;
-  flex: none;
-}
-.progress-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.progress-row-num {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 24px;
-  line-height: 1.1;
-}
-.progress-row-label {
-  font-family: var(--font-label);
-  font-weight: 600;
-  font-size: 12.5px;
-  color: var(--muted);
 }
 
 /* ================= EMERGENCY ================= */
@@ -3118,7 +3004,7 @@ body.low-stimulation .breathe-card,
 body.low-stimulation .insomnia-card,
 body.low-stimulation .study-goal-card,
 body.low-stimulation .journal-entry-card,
-body.low-stimulation .mood-card {
+body.low-stimulation .focus-card {
   box-shadow: none !important;
 }
 body.low-stimulation .insomnia-moon.active {
@@ -3341,7 +3227,20 @@ body.low-stimulation {
    card read as part of the family. The countdown ring reuses the
    highlight/primary token pair the rest of the app already uses for
    "active" state (nav-circle-primary, insomnia-moon) rather than
-   inventing a new visual language. */
+   inventing a new visual language. Focus lives as a tab inside Study now
+   (see FocusTab in Study.jsx) rather than its own routed screen, so
+   .study-focus takes the place of the old page's .screen-center wrapper --
+   it centres the picker/running/done card the same way, just without a
+   Topbar of its own (Study's own Topbar covers it). The full-screen
+   .focus-minimal-view below is unaffected -- Study's top-level render
+   returns FocusTab directly (no Topbar/tabs) while it's active, so that
+   still gets the whole viewport exactly as it did as a standalone route. */
+.study-focus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
 .focus-card {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -4001,9 +3900,6 @@ body.focus-minimal .emergency-fab {
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--muted);
-}
-.study-review-mood-symbol {
-  color: var(--primary);
 }
 .study-review-recommendation {
   background: var(--ambient);

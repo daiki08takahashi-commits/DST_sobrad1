@@ -11,13 +11,10 @@ import {
   ChatIcon,
   EmergencyIcon,
   FamilyIcon,
-  FocusIcon,
   HomeIcon,
   JournalIcon,
   LogoutIcon,
-  MoodIcon,
   MoonIcon,
-  ProgressIcon,
   SettingsIcon,
   StudyIcon,
 } from './icons.jsx';
@@ -25,7 +22,7 @@ import {
 // Persistent, Gemini-style left navigation -- desktop only (hidden below the
 // 900px breakpoint via CSS; see .app-sidebar in index.css). It gives desktop
 // users a way to jump straight to any section from anywhere. Because this
-// nav covers Journal/Mood/Chat/Breathe/Study/Progress/Sleep at that width, Home's
+// nav covers Journal/Chat/Breathe/Study/Sleep at that width, Home's
 // own tile grid + stats are redundant there and Home.jsx renders a chat
 // panel in their place instead (see Home.jsx); below 900px, with no
 // sidebar, Home keeps its original tile grid + stats and the per-screen
@@ -33,13 +30,10 @@ import {
 const NAV_ITEMS = [
   { to: '/home', label: 'Home', Icon: HomeIcon },
   { to: '/journal', label: 'Journal', Icon: JournalIcon },
-  { to: '/mood', label: 'Mood', Icon: MoodIcon },
   { to: '/chat', label: 'Chat', Icon: ChatIcon },
   { to: '/breathing', label: 'Breathe', Icon: BreatheIcon },
   { to: '/insomnia', label: 'Sleep', Icon: MoonIcon },
   { to: '/study', label: 'Study', Icon: StudyIcon },
-  { to: '/focus', label: 'Focus', Icon: FocusIcon },
-  { to: '/progress', label: 'Progress', Icon: ProgressIcon },
   { to: '/family', label: 'Family', Icon: FamilyIcon },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];

@@ -139,25 +139,6 @@ class JournalEntryOut(BaseModel):
     has_photo: bool = False
 
 
-# ---- Mood ----
-
-class MoodEntryCreate(BaseModel):
-    word: str
-
-    @field_validator("word")
-    @classmethod
-    def word_not_blank(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("word must not be empty")
-        return v
-
-
-class MoodEntryOut(BaseModel):
-    id: int
-    word: str
-    created_at: datetime
-
-
 # ---- Breathing sessions ----
 
 class BreathingSessionCreate(BaseModel):
@@ -175,7 +156,6 @@ class BreathingSessionOut(BaseModel):
 class StatsOut(BaseModel):
     grounding_minutes: int
     journal_entries: int
-    mood_checkins: int
     goals_reached: int
 
 
@@ -608,13 +588,6 @@ class WeeklyReviewOut(BaseModel):
     # is a count of sessions stopped early rather than a real reason/cause
     # (nothing in this app tracks *why* a session was interrupted).
     interrupted_session_count: int
-
-    # "improving" | "steady" | "declining" | "not_enough_data"
-    mood_trend: str
-    # Precomputed numeric detail behind mood_trend, for the frontend to show
-    # alongside the word if it wants to (both None when not enough data).
-    mood_earlier_avg: Optional[float] = None
-    mood_later_avg: Optional[float] = None
 
     # Warm, encouraging 2-4 sentence paragraph built from the numbers above
     # -- AI-narrated when ANTHROPIC_API_KEY is configured, deterministic

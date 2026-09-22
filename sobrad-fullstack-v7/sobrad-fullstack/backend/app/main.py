@@ -23,7 +23,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.database import Base, engine
-from app.routers import ai_tools, auth, breathing, chat, family, focus, journal, mood, profile, review, search, settings, stats, study, tasks
+from app.routers import ai_tools, auth, breathing, chat, family, focus, journal, profile, review, search, settings, stats, study, tasks
 
 # Create tables on startup if they don't already exist. sobrad.db is created
 # automatically in the working directory on first run.
@@ -141,7 +141,6 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(journal.router)
-app.include_router(mood.router)
 app.include_router(breathing.router)
 app.include_router(stats.router)
 app.include_router(chat.router)

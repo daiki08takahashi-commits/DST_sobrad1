@@ -269,7 +269,7 @@ function FamilySharingSection() {
       <h3>Family sharing</h3>
       <p className="settings-section-hint">
         Invite a parent or guardian to see your study progress -- grades, trends and the AI
-        summary. Nothing else here -- not your journal, mood, chats or anything from Focus or
+        summary. Nothing else here -- not your journal, chats or anything from Focus or
         Emergency -- is ever part of what they see.
       </p>
       <form onSubmit={handleSend} className="reset-flow" style={{ marginBottom: 0 }}>

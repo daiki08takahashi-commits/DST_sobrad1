@@ -60,8 +60,8 @@ padding: 32px 24px; color: #2d2a4a;">
     <strong>{child_username}</strong> uses SÕBRAD, a calm companion app for
     school and wellbeing, and would like to share their study progress with
     you -- subject averages, trends, and a gentle progress summary. Nothing
-    else on their account is shared; their journal, mood check-ins, and chats
-    stay completely private.
+    else on their account is shared; their journal and chats stay
+    completely private.
   </p>
   <p style="margin: 24px 0;">
     <a href="{join_url}" style="display: inline-block; background: #6c63ff; \

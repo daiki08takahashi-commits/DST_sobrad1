@@ -1,7 +1,7 @@
 """Family sharing: lets a student ("child") invite a parent, by email, to a
 READ-ONLY view of their Study data -- subject averages/trends, the
 AI-narrated insights summary, and the raw trend series. Nothing else in the
-app is exposed this way: journal, mood, chat, focus, emergency and progress
+app is exposed this way: journal, chat, focus, emergency and progress
 stay completely private, and this router never touches those tables. See
 models.py's FamilyLink docstring for the storage model.
 

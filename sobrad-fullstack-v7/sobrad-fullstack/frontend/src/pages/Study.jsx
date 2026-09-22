@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/Topbar.jsx';
 import * as api from '../api.js';
@@ -184,6 +184,18 @@ export default function Study() {
   const [tab, setTab] = useState('today');
   const [subjects, setSubjects] = useState([]);
 
+  // Focus used to be its own route (/focus), reached via ?task=<id> and
+  // ?emergency=1 query params (see former pages/Focus.jsx). It's now the
+  // Focus tab below (see FocusTab) and those two "launch straight into a
+  // running/ready timer" entry points -- Today's "Start Focus"/"Continue
+  // Session" button and its "Help me focus" emergency link -- set this state
+  // and switch tabs instead of navigating. `focusEntry` is read once by
+  // FocusTab on mount (mirrors the old mount-only query-param read), so
+  // switching to the Focus tab any other way (the tab bar button itself)
+  // clears it first, landing on the plain mode picker/resume-check.
+  const [focusEntry, setFocusEntry] = useState(null); // { taskId, emergency } | null
+  const [focusMinimal, setFocusMinimal] = useState(false);
+
   function loadSubjects() {
     return api
       .getSubjects()
@@ -194,6 +206,25 @@ export default function Study() {
   useEffect(() => {
     loadSubjects();
   }, []);
+
+  function launchFocus(entry) {
+    setFocusEntry(entry);
+    setTab('focus');
+  }
+
+  function openFocusTab() {
+    setFocusEntry(null);
+    setTab('focus');
+  }
+
+  // Emergency Focus Mode hides the app's normal chrome entirely -- no
+  // Topbar, no tab bar, no sidebar, no emergency FAB -- for as long as it's
+  // running (see FocusTab's minimal view and body.focus-minimal in
+  // index.css). That's a genuine full-screen takeover, so it short-circuits
+  // Study's usual Topbar-plus-tabs render rather than living inside it.
+  if (tab === 'focus' && focusMinimal) {
+    return <FocusTab entry={focusEntry} onMinimalChange={setFocusMinimal} />;
+  }
 
   return (
     <>
@@ -245,6 +276,18 @@ export default function Study() {
           >
             Tasks
           </button>
+          {/* Focus Session Timer + Emergency Focus Mode -- used to be its own
+              /focus route, see FocusTab below and the note on focusEntry
+              above. */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'focus'}
+            className={`study-tab${tab === 'focus' ? ' active' : ''}`}
+            onClick={openFocusTab}
+          >
+            Focus
+          </button>
           <button
             type="button"
             role="tab"
@@ -282,11 +325,12 @@ export default function Study() {
           </button>
         </div>
 
-        {tab === 'today' && <TodayTab />}
+        {tab === 'today' && <TodayTab onLaunchFocus={launchFocus} />}
         {tab === 'calendar' && <CalendarTab subjects={subjects} />}
         {tab === 'goals' && <GoalsTab />}
         {tab === 'grades' && <GradesTab subjects={subjects} onSubjectsChange={loadSubjects} />}
         {tab === 'tasks' && <TasksTab subjects={subjects} />}
+        {tab === 'focus' && <FocusTab entry={focusEntry} onMinimalChange={setFocusMinimal} />}
         {tab === 'deadlines' && <DeadlinesTab />}
         {tab === 'review' && <ReviewTab />}
         {tab === 'ai-tools' && <AiToolsTab />}
@@ -301,8 +345,7 @@ export default function Study() {
 // checklist plus the single next-upcoming task, fetched client-side from
 // the active task list rather than a dedicated backend filter.
 
-function TodayTab() {
-  const navigate = useNavigate();
+function TodayTab({ onLaunchFocus }) {
   const [now] = useState(() => new Date());
   const [todayTasks, setTodayTasks] = useState([]);
   const [nextTask, setNextTask] = useState(null);
@@ -353,11 +396,11 @@ function TodayTab() {
 
   function handleStartFocus() {
     const topTaskId = todayTasks[0]?.id;
-    navigate(topTaskId ? `/focus?task=${topTaskId}` : '/focus');
+    onLaunchFocus({ taskId: topTaskId || null, emergency: false });
   }
 
   function handleHelpMeFocus() {
-    navigate('/focus?emergency=1');
+    onLaunchFocus({ taskId: null, emergency: true });
   }
 
   return (
@@ -409,6 +452,386 @@ function TodayTab() {
           Help me focus
         </button>
       </div>
+    </div>
+  );
+}
+
+// ================================ Focus =================================
+// Focus Session Timer + Emergency Focus Mode -- used to be its own /focus
+// route (pages/Focus.jsx), reached via ?task=<id> and ?emergency=1 query
+// params. Now a tab here (see the "Focus" study-tab button above): `entry`
+// (set once by Study's launchFocus/openFocusTab, see the top-level Study()
+// component) plays the same role those params used to. The Focus backend
+// itself (focus.py, FocusSession, /api/focus/*) is unchanged -- only the UI
+// moved -- so every api.js call below is identical to what Focus.jsx used
+// to make.
+//
+// Three "modes" the countdown can be started with -- the two fixed Pomodoro
+// shapes plus a free-typed custom length. Break length isn't tracked here
+// (see task brief): planned_minutes is the *focus* length only.
+const FOCUS_MODES = [
+  { id: 'pomodoro_25_5', label: 'Pomodoro 25/5', minutes: 25, blurb: '25 min focus, 5 min break' },
+  { id: 'pomodoro_50_10', label: 'Pomodoro 50/10', minutes: 50, blurb: '50 min focus, 10 min break' },
+  { id: 'custom', label: 'Custom', minutes: null, blurb: 'Set your own focus length' },
+];
+
+const FOCUS_EMERGENCY_MODE = 'pomodoro_25_5';
+const FOCUS_EMERGENCY_MINUTES = 25;
+
+function formatFocusClock(totalSeconds) {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+// A short, gentle two-note chime synthesized with the Web Audio API -- no
+// audio file needed. Kept quiet (low gain, sine wave, slow fade in/out)
+// since this is a calm app for people who may already be stressed; this is
+// a nudge, not an alarm.
+function playGentleChime() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const notes = [587.33, 783.99]; // D5, G5 -- a soft, non-alarming interval
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.32;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.14, start + 0.08);
+      gain.gain.linearRampToValueAtTime(0, start + 1.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 1.2);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 2000);
+  } catch {
+    // Best effort -- silence is an acceptable degradation if Web Audio
+    // isn't available.
+  }
+}
+
+// `entry` is `{ taskId, emergency }` (or null), set once by Study's
+// launchFocus/openFocusTab and read only on mount below -- exactly how the
+// old ?task=/?emergency=1 query params were read once by Focus.jsx.
+// `onMinimalChange` lets Study's top-level render know when Emergency Focus
+// Mode is showing its full-screen minimal view, so it can skip rendering
+// its own Topbar + tab bar around it (see focusMinimal in Study() above).
+function FocusTab({ entry, onMinimalChange }) {
+  const navigate = useNavigate();
+  const showToast = useToast();
+
+  const taskIdParam = entry?.taskId ?? null;
+  const isEmergencyParam = Boolean(entry?.emergency);
+
+  // loading -> checking for an already-open session
+  // picker  -> mode picker, nothing running
+  // running -> countdown in progress
+  // done    -> just finished/stopped, offering to start again
+  const [phase, setPhase] = useState('loading');
+  const [session, setSession] = useState(null);
+  const [remaining, setRemaining] = useState(0);
+  const [minimal, setMinimal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState(null);
+  const [selectedMode, setSelectedMode] = useState('pomodoro_25_5');
+  const [customMinutes, setCustomMinutes] = useState('30');
+  const [starting, setStarting] = useState(false);
+  const [lastCompleted, setLastCompleted] = useState(true);
+
+  const tickRef = useRef(null);
+  const completedRef = useRef(false);
+  const emergencyKickedOffRef = useRef(false);
+
+  const endSession = useCallback(
+    async (completed) => {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+      setSession((current) => {
+        if (current && !completedRef.current) {
+          completedRef.current = true;
+          api.completeFocusSession(current.id, completed).catch(() => {
+            // Best effort -- the local UI still ends the session even if
+            // the network call fails.
+          });
+        }
+        return current;
+      });
+      if (completed) {
+        playGentleChime();
+        showToast('Nice focus. Session complete.');
+      }
+      setLastCompleted(completed);
+      setMinimal(false);
+      setPhase('done');
+    },
+    [showToast]
+  );
+
+  const beginSession = useCallback(
+    async (mode, minutes, taskId, makeMinimal) => {
+      setStarting(true);
+      completedRef.current = false;
+      try {
+        const created = await api.startFocusSession({
+          mode,
+          plannedMinutes: minutes,
+          taskId: taskId || undefined,
+        });
+        setSession(created);
+        setPhase('running');
+        setMinimal(Boolean(makeMinimal));
+      } catch {
+        showToast("Couldn't start the session. Please try again.");
+        setPhase('picker');
+      } finally {
+        setStarting(false);
+      }
+    },
+    [showToast]
+  );
+
+  // Countdown tick, driven off session.started_at + session.planned_minutes
+  // rather than a locally-counted number, so a page reload (see the resume
+  // effect below) picks up exactly where it should be instead of drifting
+  // or restarting.
+  useEffect(() => {
+    if (phase !== 'running' || !session) return undefined;
+
+    function tick() {
+      const startedAt = new Date(session.started_at).getTime();
+      const secsLeft = session.planned_minutes * 60 - (Date.now() - startedAt) / 1000;
+      setRemaining(secsLeft);
+      if (secsLeft <= 0) {
+        endSession(true);
+      }
+    }
+
+    tick();
+    tickRef.current = setInterval(tick, 1000);
+    return () => clearInterval(tickRef.current);
+  }, [phase, session, endSession]);
+
+  // On mount: resume an already-open session ("Continue Session") if one
+  // exists, otherwise honour an emergency entry (Help me focus, launched
+  // from Today) or fall back to the mode picker. Also resolves entry.taskId
+  // (or an active session's own task_id) to a title to show during the
+  // session.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (taskIdParam) {
+      api
+        .getTask(taskIdParam)
+        .then((t) => {
+          if (!cancelled) setTaskTitle(t.title);
+        })
+        .catch(() => {});
+    }
+
+    api
+      .getActiveFocusSession()
+      .then((active) => {
+        if (cancelled) return;
+        if (active) {
+          completedRef.current = false;
+          setSession(active);
+          setPhase('running');
+          if (active.task_id && !taskIdParam) {
+            api
+              .getTask(active.task_id)
+              .then((t) => {
+                if (!cancelled) setTaskTitle(t.title);
+              })
+              .catch(() => {});
+          }
+          return;
+        }
+        if (isEmergencyParam && !emergencyKickedOffRef.current) {
+          emergencyKickedOffRef.current = true;
+          beginSession(FOCUS_EMERGENCY_MODE, FOCUS_EMERGENCY_MINUTES, null, true);
+          return;
+        }
+        setPhase('picker');
+      })
+      .catch(() => {
+        if (!cancelled) setPhase('picker');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally only on mount -- `entry` is read once to decide the
+    // initial phase, not re-applied on every render (mirrors the old
+    // mount-only query-param read).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Emergency Focus Mode hides the app's normal chrome (sidebar + emergency
+  // FAB, and -- now that Focus lives inside Study -- Study's own Topbar +
+  // tab bar too, via onMinimalChange/focusMinimal above) for as long as
+  // it's active -- a body class flips CSS rules added alongside the rest of
+  // this file's styles (see .focus-minimal-view / body.focus-minimal in
+  // index.css).
+  useEffect(() => {
+    document.body.classList.toggle('focus-minimal', minimal);
+    onMinimalChange?.(minimal);
+    return () => {
+      document.body.classList.remove('focus-minimal');
+    };
+  }, [minimal, onMinimalChange]);
+
+  function handleStart() {
+    const mode = FOCUS_MODES.find((m) => m.id === selectedMode) || FOCUS_MODES[0];
+    const minutes =
+      mode.id === 'custom' ? Math.max(1, Math.min(180, parseInt(customMinutes, 10) || 25)) : mode.minutes;
+    beginSession(mode.id, minutes, taskIdParam ? Number(taskIdParam) : null, false);
+  }
+
+  function handleEmergency() {
+    beginSession(FOCUS_EMERGENCY_MODE, FOCUS_EMERGENCY_MINUTES, null, true);
+  }
+
+  function handleStop() {
+    endSession(false);
+  }
+
+  function handleStartAnother() {
+    setSession(null);
+    setTaskTitle(null);
+    setPhase('picker');
+  }
+
+  const plannedSeconds = session ? session.planned_minutes * 60 : 0;
+  const percentLeft = plannedSeconds ? Math.max(0, Math.min(1, remaining / plannedSeconds)) : 0;
+  const ringRadius = 88;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+
+  const ring = (
+    <div className="focus-ring-wrap">
+      <svg viewBox="0 0 200 200" className="focus-ring" aria-hidden="true">
+        <circle cx="100" cy="100" r={ringRadius} className="focus-ring-track" />
+        <circle
+          cx="100"
+          cy="100"
+          r={ringRadius}
+          className="focus-ring-progress"
+          strokeDasharray={ringCircumference}
+          strokeDashoffset={ringCircumference * (1 - percentLeft)}
+          transform="rotate(-90 100 100)"
+        />
+      </svg>
+      <div className="focus-ring-label">{formatFocusClock(remaining)}</div>
+    </div>
+  );
+
+  if (phase === 'loading') {
+    return (
+      <div className="study-focus">
+        <p className="eyebrow">Checking for a session…</p>
+      </div>
+    );
+  }
+
+  // Emergency / minimal mode: deliberately nothing but the countdown, the
+  // task (if any), and a Stop button -- no Topbar, no tab bar, no sidebar,
+  // no FAB. Study's top-level render returns this directly (see
+  // focusMinimal in Study() above) instead of wrapping it in the usual
+  // Topbar + tabs.
+  if (phase === 'running' && minimal) {
+    return (
+      <div className="focus-minimal-view">
+        <p className="focus-minimal-eyebrow">Emergency Focus</p>
+        {taskTitle && <p className="focus-minimal-task">{taskTitle}</p>}
+        {ring}
+        <button type="button" className="btn btn-outline focus-minimal-stop" onClick={handleStop}>
+          Stop
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="study-focus">
+      {phase === 'picker' && (
+        <div className="focus-card">
+          {taskTitle && (
+            <p className="focus-task-note">
+              Starting focus on <strong>{taskTitle}</strong>
+            </p>
+          )}
+          <p className="eyebrow">Choose a session</p>
+          <div className="focus-mode-list">
+            {FOCUS_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`focus-mode-option${selectedMode === m.id ? ' selected' : ''}`}
+                onClick={() => setSelectedMode(m.id)}
+                aria-pressed={selectedMode === m.id}
+              >
+                <span className="focus-mode-label">{m.label}</span>
+                <span className="focus-mode-blurb">{m.blurb}</span>
+              </button>
+            ))}
+          </div>
+          {selectedMode === 'custom' && (
+            <div className="field focus-custom-field">
+              <label htmlFor="focus-custom-minutes">Focus minutes</label>
+              <input
+                id="focus-custom-minutes"
+                type="number"
+                min="1"
+                max="180"
+                inputMode="numeric"
+                value={customMinutes}
+                onChange={(e) => setCustomMinutes(e.target.value)}
+              />
+            </div>
+          )}
+          <button type="button" className="btn btn-primary" onClick={handleStart} disabled={starting}>
+            {starting ? 'Starting…' : 'Start focus session'}
+          </button>
+          <button type="button" className="btn-quiet focus-emergency-link" onClick={handleEmergency}>
+            Help me focus right now
+          </button>
+        </div>
+      )}
+
+      {phase === 'running' && session && (
+        <div className="focus-card">
+          {taskTitle && (
+            <p className="focus-task-note">
+              Focusing on <strong>{taskTitle}</strong>
+            </p>
+          )}
+          {ring}
+          <p className="focus-status">Stay with it if you can. You can stop any time.</p>
+          <button type="button" className="btn btn-outline" onClick={handleStop}>
+            Stop session
+          </button>
+        </div>
+      )}
+
+      {phase === 'done' && (
+        <div className="focus-card">
+          <p className="focus-status">
+            {lastCompleted
+              ? 'Session complete. Well done for showing up for it.'
+              : 'Session stopped. That still counts -- you can pick it back up any time.'}
+          </p>
+          <button type="button" className="btn btn-primary" onClick={handleStartAnother}>
+            Start another session
+          </button>
+          <button type="button" className="btn-quiet" onClick={() => navigate('/home')}>
+            Back to Home
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2872,8 +3295,8 @@ function DeadlinesTab() {
 // days) whenever this tab is opened, rather than pushed every Sunday (see
 // backend routers/review.py's module docstring for why: this simple FastAPI
 // app has no background job scheduler). Shows total study time, best focus
-// day, the interrupted-sessions "biggest distraction" proxy, a mood trend,
-// and an AI-narrated (deterministic-fallback) recommended-improvement card.
+// day, the interrupted-sessions "biggest distraction" proxy, and an
+// AI-narrated (deterministic-fallback) recommended-improvement card.
 
 function formatStudyDuration(totalMinutes) {
   if (!totalMinutes || totalMinutes <= 0) return '0m';
@@ -2897,13 +3320,6 @@ function formatReviewDate(iso) {
     month: 'long',
   });
 }
-
-const MOOD_TREND_COPY = {
-  improving: { label: 'Trending up', symbol: '↑' },
-  steady: { label: 'Holding steady', symbol: '→' },
-  declining: { label: 'Trending down', symbol: '↓' },
-  not_enough_data: { label: 'Not enough data yet', symbol: '·' },
-};
 
 function ReviewTab() {
   const [review, setReview] = useState(null);
@@ -2952,8 +3368,7 @@ function ReviewTab() {
 
   if (!review) return null;
 
-  const hasAnyData = review.total_study_minutes > 0 || review.mood_trend !== 'not_enough_data';
-  const moodCopy = MOOD_TREND_COPY[review.mood_trend] || MOOD_TREND_COPY.not_enough_data;
+  const hasAnyData = review.total_study_minutes > 0;
   const distractionText =
     review.interrupted_session_count > 0
       ? `Stopped ${review.interrupted_session_count} session${review.interrupted_session_count === 1 ? '' : 's'} early`
@@ -2973,8 +3388,8 @@ function ReviewTab() {
 
       {!hasAnyData ? (
         <p className="mood-empty study-review-empty">
-          Nothing logged yet this week — that&rsquo;s alright. A focus session or a mood check-in is
-          all it takes for this page to start filling in.
+          Nothing logged yet this week — that&rsquo;s alright. A focus session is all it takes for
+          this page to start filling in.
         </p>
       ) : (
         <div className="study-review-stat-grid">
@@ -2998,15 +3413,6 @@ function ReviewTab() {
           <div className="study-review-stat-card">
             <span className="study-review-stat-label">Biggest distraction</span>
             <span className="study-review-stat-value study-review-stat-value-small">{distractionText}</span>
-          </div>
-          <div className="study-review-stat-card">
-            <span className="study-review-stat-label">Mood trend</span>
-            <span className="study-review-stat-value">
-              <span className="study-review-mood-symbol" aria-hidden="true">
-                {moodCopy.symbol}
-              </span>{' '}
-              {moodCopy.label}
-            </span>
           </div>
         </div>
       )}

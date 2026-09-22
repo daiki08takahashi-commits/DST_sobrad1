@@ -9,12 +9,9 @@ import Home from './pages/Home.jsx';
 import Breathing from './pages/Breathing.jsx';
 import Journal from './pages/Journal.jsx';
 import Chat from './pages/Chat.jsx';
-import Mood from './pages/Mood.jsx';
-import Progress from './pages/Progress.jsx';
 import Study from './pages/Study.jsx';
 import Insomnia from './pages/Insomnia.jsx';
 import Emergency from './pages/Emergency.jsx';
-import Focus from './pages/Focus.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import FamilyJoin from './pages/FamilyJoin.jsx';
@@ -45,14 +42,11 @@ export default function App() {
               <Route path="/breathing" element={<Breathing />} />
               <Route path="/journal" element={<Journal />} />
               <Route path="/chat" element={<Chat />} />
-              <Route path="/mood" element={<Mood />} />
-              <Route path="/progress" element={<Progress />} />
               <Route path="/study" element={<Study />} />
               <Route path="/insomnia" element={<Insomnia />} />
               <Route path="/emergency" element={<Emergency />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/focus" element={<Focus />} />
               <Route path="/family" element={<Family />} />
               <Route path="/family/:childId" element={<FamilyChildView />} />
             </Route>

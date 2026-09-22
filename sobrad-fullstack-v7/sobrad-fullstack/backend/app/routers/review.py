@@ -45,7 +45,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import FocusSession, MoodEntry, User
+from app.models import FocusSession, User
 from app.schemas import WeeklyReviewOut
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -58,28 +58,6 @@ logger = logging.getLogger(__name__)
 # on-demand rather than on a schedule.
 WINDOW_DAYS = 7
 
-# Mirrors Mood.jsx's MOOD_WORDS exactly (frontend/src/pages/Mood.jsx) -- the
-# only five words the Mood tab's picker actually sends, mapped onto a simple
-# 1-5 ordinal scale purely for computing a trend direction server-side. This
-# mapping is never shown to the user and never sent anywhere except into the
-# earlier/later-half average below. Any MoodEntry.word that doesn't match one
-# of these (e.g. legacy/free-text data from before this scale existed) is
-# counted in entry totals but excluded from the numeric trend, exactly like
-# an out-of-range value would be -- better to under-claim a trend than
-# silently mis-score an unrecognized word.
-MOOD_SCALE: Dict[str, int] = {
-    "low": 1,
-    "flat": 2,
-    "okay": 3,
-    "good": 4,
-    "great": 5,
-}
-
-# Same "small fluctuations shouldn't read as a trend" idea as study.py's
-# TREND_STEADY_BAND, just recalibrated for a 1-5 mood scale instead of a
-# 0-100 grade scale.
-MOOD_TREND_STEADY_BAND = 0.4
-
 DEFAULT_REVIEW_MODEL = "claude-haiku-4-5"
 MAX_REVIEW_TOKENS = 260
 ANTHROPIC_TIMEOUT_SECONDS = 10.0
@@ -88,9 +66,8 @@ ANTHROPIC_MAX_RETRIES = 0
 REVIEW_SYSTEM_PROMPT = """You are writing a short, warm "recommended improvement" note for a \
 student's AI Weekly Review inside the SOBRAD app's Study page. You will be \
 given a small set of precomputed statistics for their last 7 days: total \
-focus/study minutes, their best focus day (if any) and its minutes, how \
-many focus sessions they stopped early, and a mood trend (direction plus \
-the earlier/later half averages on a 1-5 scale, where available).
+focus/study minutes, their best focus day (if any) and its minutes, and how \
+many focus sessions they stopped early.
 
 Write 2-4 short sentences: warm, encouraging and specific to the numbers \
 given, but honest and non-hyped -- never pretend there's more data than \
@@ -167,59 +144,14 @@ def _compute_focus_stats(sessions: List[FocusSession]) -> dict:
     }
 
 
-def _compute_mood_stats(entries: List[MoodEntry]) -> dict:
-    """Mirrors study.py's get_insights() earlier-half-vs-later-half trend
-    technique, recalibrated for MoodEntry.word via MOOD_SCALE instead of
-    Grade.score. `entries` must already be ordered chronologically ascending.
-    """
-    scored = [
-        (e, MOOD_SCALE[e.word.strip().lower()])
-        for e in entries
-        if e.word.strip().lower() in MOOD_SCALE
-    ]
-    n = len(scored)
-
-    if n < 2:
-        return {
-            "trend": "not_enough_data",
-            "earlier_avg": None,
-            "later_avg": None,
-            "entry_count": len(entries),
-            "scored_count": n,
-        }
-
-    half = n // 2
-    earlier_half = scored[:half]
-    later_half = scored[half:]
-    earlier_avg = round(sum(v for _, v in earlier_half) / len(earlier_half), 1)
-    later_avg = round(sum(v for _, v in later_half) / len(later_half), 1)
-    diff = later_avg - earlier_avg
-
-    if diff > MOOD_TREND_STEADY_BAND:
-        trend = "improving"
-    elif diff < -MOOD_TREND_STEADY_BAND:
-        trend = "declining"
-    else:
-        trend = "steady"
-
-    return {
-        "trend": trend,
-        "earlier_avg": earlier_avg,
-        "later_avg": later_avg,
-        "entry_count": len(entries),
-        "scored_count": n,
-    }
-
-
 def _format_review_stats(
     window_start: date_type,
     window_end: date_type,
     focus_stats: dict,
-    mood_stats: dict,
 ) -> dict:
     """The precomputed, numbers-only stats bundle handed to the AI (and used
-    to build the deterministic fallback below). Never includes raw session or
-    mood rows -- only the aggregates already computed above.
+    to build the deterministic fallback below). Never includes raw session
+    rows -- only the aggregates already computed above.
     """
     return {
         "window_start": window_start.isoformat(),
@@ -231,10 +163,6 @@ def _format_review_stats(
         "best_focus_day_minutes": focus_stats["best_focus_day_minutes"],
         "interrupted_session_count": focus_stats["interrupted_session_count"],
         "focus_session_count": focus_stats["session_count"],
-        "mood_trend": mood_stats["trend"],
-        "mood_earlier_half_average": mood_stats["earlier_avg"],
-        "mood_later_half_average": mood_stats["later_avg"],
-        "mood_entry_count": mood_stats["entry_count"],
     }
 
 
@@ -258,12 +186,11 @@ def _deterministic_recommendation(stats: dict) -> str:
     total_minutes = stats["total_study_minutes"]
     interrupted = stats["interrupted_session_count"]
     best_day_minutes = stats["best_focus_day_minutes"]
-    mood_trend = stats["mood_trend"]
 
-    if total_minutes == 0 and stats["mood_entry_count"] == 0:
+    if total_minutes == 0:
         return (
             "Nothing logged yet this week — no pressure. A single focus session "
-            "or mood check-in is all it takes to get this page started."
+            "is all it takes to get this page started."
         )
 
     parts = []
@@ -282,13 +209,6 @@ def _deterministic_recommendation(stats: dict) -> str:
         parts.append(
             f"{interrupted} sessions got stopped early this week — worth noticing if a pattern keeps showing up."
         )
-
-    if mood_trend == "improving":
-        parts.append("Your logged mood has been trending upward too, which is worth noticing.")
-    elif mood_trend == "declining":
-        parts.append("Your logged mood dipped a bit over the week — be gentle with yourself.")
-    elif mood_trend == "steady":
-        parts.append("Your mood check-ins have stayed fairly steady.")
 
     if total_minutes > 0:
         parts.append("One small idea for next week: keep sessions roughly the same length so they're easier to finish end to end.")
@@ -361,9 +281,8 @@ def get_weekly_review(
     """The AI Weekly Review. Defaults to the last 7 days ending today;
     `end_date` (optional, YYYY-MM-DD) lets the frontend ask for a different
     week later without changing this endpoint's shape. Always returns 200 --
-    including for a user with zero focus sessions and zero mood entries in
-    the window, which gets a calm, encouraging placeholder rather than an
-    error.
+    including for a user with zero focus sessions in the window, which gets a
+    calm, encouraging placeholder rather than an error.
     """
     if end_date:
         try:
@@ -387,20 +306,9 @@ def get_weekly_review(
         .order_by(FocusSession.started_at.asc(), FocusSession.id.asc())
         .all()
     )
-    mood_entries = (
-        db.query(MoodEntry)
-        .filter(
-            MoodEntry.user_id == current_user.id,
-            MoodEntry.created_at >= start_dt,
-            MoodEntry.created_at <= end_dt,
-        )
-        .order_by(MoodEntry.created_at.asc(), MoodEntry.id.asc())
-        .all()
-    )
 
     focus_stats = _compute_focus_stats(sessions)
-    mood_stats = _compute_mood_stats(mood_entries)
-    stats = _format_review_stats(window_start, window_end, focus_stats, mood_stats)
+    stats = _format_review_stats(window_start, window_end, focus_stats)
 
     ai_text = _build_ai_recommendation(stats)
     if ai_text is not None:
@@ -417,9 +325,6 @@ def get_weekly_review(
         best_focus_day=focus_stats["best_focus_day"],
         best_focus_day_minutes=focus_stats["best_focus_day_minutes"],
         interrupted_session_count=focus_stats["interrupted_session_count"],
-        mood_trend=mood_stats["trend"],
-        mood_earlier_avg=mood_stats["earlier_avg"],
-        mood_later_avg=mood_stats["later_avg"],
         recommended_improvement=recommendation,
         generated_by=generated_by,
     )

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import BreathingSession, JournalEntry, MoodEntry, User
+from app.models import BreathingSession, JournalEntry, User
 from app.schemas import StatsOut
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -25,15 +25,8 @@ def get_stats(
         .filter(JournalEntry.user_id == current_user.id)
         .scalar()
     )
-    mood_checkins = (
-        db.query(func.count(MoodEntry.id))
-        .filter(MoodEntry.user_id == current_user.id)
-        .scalar()
-    )
-
     return StatsOut(
         grounding_minutes=int(grounding_minutes or 0),
         journal_entries=int(journal_entries or 0),
-        mood_checkins=int(mood_checkins or 0),
         goals_reached=current_user.goals_reached,
     )
