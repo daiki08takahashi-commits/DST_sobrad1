@@ -223,3 +223,17 @@ export function TrashIcon(props) {
     </svg>
   );
 }
+
+// "More options" kebab trigger -- a kebab menu conventionally reads as
+// three solid dots even inside an otherwise stroke-only icon set, so this
+// overrides `base`'s fill/stroke on each circle rather than on the <svg>
+// itself, keeping the wrapper consistent with every other icon here.
+export function MoreIcon(props) {
+  return (
+    <svg {...base} className="icon" {...props}>
+      <circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

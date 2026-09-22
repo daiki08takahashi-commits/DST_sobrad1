@@ -1265,30 +1265,84 @@ textarea:focus-visible {
   font-size: 13px;
 }
 
-/* Custom companions ("Add a friend" + per-row hide/edit/delete) --------- */
-.chat-add-friend-btn {
-  align-self: flex-start;
-}
+/* Custom companions (per-row "more options" kebab menu + "Add a friend"
+   underneath) --------------------------------------------------------- */
 
-/* Wraps one chat-list row together with its small strip of per-row actions
-   (hide/show, and for a custom companion, edit/delete) -- a sibling of
+/* Wraps one chat-list row together with its "more options" kebab menu (or,
+   mid-delete, the chat-clear-confirm strip in its place) -- a sibling of
    .chat-list-row rather than nested inside it, since .chat-list-row is
    itself a <button> and can't contain further interactive buttons. */
 .chat-list-row-wrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
-.chat-list-row-actions {
+
+/* The kebab trigger + its dropdown panel -- same position:relative
+   trigger / position:absolute panel pattern as .sidebar-search's own
+   search-results dropdown (card background/border/radius/shadow, each
+   item a full-width left-aligned button, same hover treatment as
+   .search-result-row), just right-aligned under the row since the trigger
+   sits at the row's right edge. Kept as a small icon-only button (muted,
+   no visible border/background until hover/focus) rather than a labelled
+   one -- this is a 2-3 item menu, not something that needs its own
+   visual weight. */
+.chat-list-row-menu {
+  position: relative;
+  align-self: flex-end;
+}
+.chat-list-row-menu-btn {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 0 6px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
 }
-.chat-list-row-actions .btn-quiet {
-  padding: 2px 4px;
-  font-size: 12.5px;
+.chat-list-row-menu-btn:hover,
+.chat-list-row-menu-btn:focus-visible {
+  background: var(--ambient);
+  color: var(--ink);
+}
+.chat-list-row-menu-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+.chat-list-row-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  width: 150px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-input);
+  box-shadow: 0 10px 28px var(--shadow);
+  padding: 6px;
+}
+.chat-list-row-menu-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.chat-list-row-menu-item:hover {
+  background: var(--ambient);
+}
+.chat-list-row-menu-item:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* "Show hidden friends" toggle + the hidden sub-section it reveals -- kept
@@ -1303,6 +1357,16 @@ textarea:focus-visible {
 }
 .chat-list-hidden {
   opacity: 0.78;
+}
+
+/* "Add a friend" now sits at the very bottom of the chat screen (after the
+   visible list and the hidden-friends section), as a quiet secondary
+   action rather than the bold btn-primary CTA it used to be at the top of
+   the list -- .btn-quiet already supplies the muted text-button look
+   itself; align-self just keeps it from stretching full-width the way a
+   flex child of .screen-inner otherwise would. */
+.chat-add-friend-btn {
+  align-self: flex-start;
 }
 
 /* Shared "Add a friend" / "Edit friend" form -- same card language as

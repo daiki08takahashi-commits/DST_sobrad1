@@ -4,7 +4,7 @@ import Topbar from '../components/Topbar.jsx';
 import ChatPanel from '../components/ChatPanel.jsx';
 import * as api from '../api.js';
 import { useToast } from '../ToastContext.jsx';
-import { CameraIcon } from '../components/icons.jsx';
+import { CameraIcon, MoreIcon } from '../components/icons.jsx';
 import { isBuiltinCompanion, initialFor, resolveCompanion } from '../companions.js';
 
 // How much personality/tone text a custom companion can have -- matches the
@@ -51,12 +51,24 @@ function formatRowTimestamp(iso) {
 // the thread is still empty. A relative timestamp sits top-right, blank
 // until there's a real message.
 //
-// The row itself is a <button> (opens the thread), with a small strip of
-// per-row actions underneath as plain sibling buttons -- kept out of the
-// row button itself since a <button> can't contain further interactive
-// controls. Hide/Show is offered for every companion; Edit/Delete only for
-// a custom (non-default) one, since the backend rejects a rename/
-// personality-edit/delete on a built-in with a 400.
+// The row itself is a <button> (opens the thread), with a small "more
+// options" kebab menu as a sibling underneath -- kept out of the row
+// button itself since a <button> can't contain further interactive
+// controls. The menu holds Hide/Show (offered for every companion) plus
+// Edit/Delete for a custom (non-default) one only, since the backend
+// rejects a rename/personality-edit/delete on a built-in with a 400.
+//
+// Only one row's menu is open at a time: `menuOpen` is driven by the
+// parent Chat()'s single `openMenuKey`, so opening a new row's menu
+// implicitly closes whichever other one was open. Each row wires its own
+// outside-click/Escape listener (only while ITS menu is the open one,
+// mirroring Sidebar.jsx's own search-results dropdown) since that needs a
+// ref scoped to this row.
+//
+// Clicking Delete in the menu just closes the menu and hands off to the
+// existing two-step chat-clear-confirm strip
+// (confirmingDelete/onDeleteRequest/onDeleteConfirm/onDeleteCancel) --
+// that strip renders in the same place the menu would, exactly as before.
 function CompanionRow({
   companion,
   lastMessage,
@@ -69,11 +81,37 @@ function CompanionRow({
   onDeleteConfirm,
   onDeleteCancel,
   deleting,
+  menuOpen,
+  onToggleMenu,
+  onCloseMenu,
 }) {
   const hasHistory = Boolean(lastMessage);
   const preview = hasHistory
     ? truncate(`${lastMessage.sender === 'user' ? 'You: ' : ''}${lastMessage.text}`)
     : companion.greeting;
+
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onCloseMenu();
+    }
+    function handlePointerDown(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        onCloseMenu();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+    // onCloseMenu is a fresh closure from the parent each render; only
+    // menuOpen actually needs to re-arm this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuOpen]);
 
   return (
     <div className="chat-list-row-wrap">
@@ -96,35 +134,72 @@ function CompanionRow({
         </span>
       </button>
 
-      <div className="chat-list-row-actions">
-        {confirmingDelete ? (
-          <span className="chat-clear-confirm">
-            <span>Delete {companion.name} and their whole chat history?</span>
-            <button type="button" className="btn-quiet" onClick={onDeleteConfirm} disabled={deleting}>
-              {deleting ? 'Deleting…' : 'Yes, delete'}
-            </button>
-            <button type="button" className="btn-quiet" onClick={onDeleteCancel} disabled={deleting}>
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <>
-            {!companion.is_default && (
-              <button type="button" className="btn-quiet" onClick={onEdit}>
-                Edit
+      {confirmingDelete ? (
+        <span className="chat-clear-confirm">
+          <span>Delete {companion.name} and their whole chat history?</span>
+          <button type="button" className="btn-quiet" onClick={onDeleteConfirm} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Yes, delete'}
+          </button>
+          <button type="button" className="btn-quiet" onClick={onDeleteCancel} disabled={deleting}>
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <div className="chat-list-row-menu" ref={menuRef}>
+          <button
+            type="button"
+            className="chat-list-row-menu-btn"
+            aria-label={`More options for ${companion.name}`}
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            onClick={onToggleMenu}
+          >
+            <MoreIcon />
+          </button>
+          {menuOpen && (
+            <div className="chat-list-row-menu-panel" role="menu">
+              {!companion.is_default && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="chat-list-row-menu-item"
+                  onClick={() => {
+                    onCloseMenu();
+                    onEdit();
+                  }}
+                >
+                  Edit
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                className="chat-list-row-menu-item"
+                disabled={hidingBusy}
+                onClick={() => {
+                  onCloseMenu();
+                  onToggleHidden();
+                }}
+              >
+                {hidingBusy ? 'Working…' : companion.hidden ? 'Show' : 'Hide'}
               </button>
-            )}
-            <button type="button" className="btn-quiet" onClick={onToggleHidden} disabled={hidingBusy}>
-              {hidingBusy ? 'Working…' : companion.hidden ? 'Show' : 'Hide'}
-            </button>
-            {!companion.is_default && (
-              <button type="button" className="btn-quiet" onClick={onDeleteRequest}>
-                Delete
-              </button>
-            )}
-          </>
-        )}
-      </div>
+              {!companion.is_default && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="chat-list-row-menu-item"
+                  onClick={() => {
+                    onCloseMenu();
+                    onDeleteRequest();
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -324,6 +399,11 @@ export default function Chat() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  // Which row's "more options" kebab menu is open, by companion key --
+  // a single shared piece of state (rather than per-row) is what makes
+  // opening one row's menu implicitly close any other, since only one
+  // value can be "open" at a time.
+  const [openMenuKey, setOpenMenuKey] = useState(null);
 
   useEffect(() => {
     avatarUrlsRef.current = avatarUrls;
@@ -528,6 +608,9 @@ export default function Chat() {
         onDeleteConfirm={() => handleDeleteConfirm(c)}
         onDeleteCancel={() => setDeleteConfirmId(null)}
         deleting={deleting && deleteConfirmId === c.id}
+        menuOpen={openMenuKey === c.key}
+        onToggleMenu={() => setOpenMenuKey((prev) => (prev === c.key ? null : c.key))}
+        onCloseMenu={() => setOpenMenuKey(null)}
       />
     );
   }
@@ -537,19 +620,6 @@ export default function Chat() {
       <Topbar title="Chat" />
       <div className="screen-inner chat-screen">
         <div className="chat-list">
-          {!showAddForm && (
-            <button
-              type="button"
-              className="btn btn-primary chat-add-friend-btn"
-              onClick={() => setShowAddForm(true)}
-            >
-              + Add a friend
-            </button>
-          )}
-          {showAddForm && (
-            <CompanionForm mode="create" onCancel={() => setShowAddForm(false)} onDone={handleAddDone} />
-          )}
-
           {!loaded && <p className="mood-empty">Loading…</p>}
           {loaded && visible.map(renderRow)}
         </div>
@@ -561,6 +631,19 @@ export default function Chat() {
             </button>
             {showHidden && <div className="chat-list chat-list-hidden">{hidden.map(renderRow)}</div>}
           </div>
+        )}
+
+        {/* "Add a friend" sits underneath everything else -- the list is the
+            main event, adding a new companion is a secondary, occasional
+            action, so it's a quiet text-style trigger rather than the bold
+            primary-color CTA it used to be up top. */}
+        {!showAddForm && (
+          <button type="button" className="btn-quiet chat-add-friend-btn" onClick={() => setShowAddForm(true)}>
+            + Add a friend
+          </button>
+        )}
+        {showAddForm && (
+          <CompanionForm mode="create" onCancel={() => setShowAddForm(false)} onDone={handleAddDone} />
         )}
       </div>
     </>
