@@ -1054,6 +1054,42 @@ textarea:focus-visible {
   height: 16px;
 }
 
+/* File attachment on a journal entry -- fully parallel to the photo block
+   above: a filename chip (opens/downloads the file) plus the add/change/
+   remove action row. Reuses .btn-quiet for the actions, same as the photo
+   row and every other per-card action elsewhere in the app. */
+.journal-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.journal-file-actions .btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.journal-file-actions .icon {
+  width: 16px;
+  height: 16px;
+}
+.journal-file-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--ambient);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
 /* ================= CHAT ================= */
 /* Quiet, low-key row above the thread -- this sits in the ChatPanel used by
    the dedicated Chat screen, so it never competes visually with the
@@ -2503,17 +2539,30 @@ textarea:focus-visible {
      the toast can visually sit under the sidebar's left edge. */
   .pinned-layer {
     left: 256px;
+    transition: left 0.25s ease;
   }
 
   /* When the sidebar is fully hidden (body.sidebar-collapsed -- see the
-     rule block right after this media query), there's no 256px column to
-     dodge any more, so the pinned FAB/toast layer goes back to centring
+     body.sidebar-collapsed .app-sidebar rule just below), there's no 256px
+     column to dodge any more, so the pinned FAB/toast layer goes back to centring
      across the full viewport, same as below the breakpoint. .pinned-layer
      is a sibling of .app-layout (both children of the same parent -- see
      RequireAuth.jsx), so it's targeted directly here rather than nested
      under .app-layout. */
   body.sidebar-collapsed .pinned-layer {
     left: 0;
+  }
+
+  /* Collapsed state animates to zero width/opacity instead of an instant
+     display:none, so the sidebar can transition smoothly (see the
+     `transition` on the shown-state .app-sidebar rule below). Nested here,
+     inside the 900px breakpoint, since collapse only has a visible effect
+     on desktop -- .app-sidebar is already display:none by default below
+     that width regardless of body.sidebar-collapsed. */
+  body.sidebar-collapsed .app-sidebar {
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .app-sidebar {
@@ -2525,11 +2574,13 @@ textarea:focus-visible {
     top: 0;
     height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--card);
     border-right: 1px solid var(--card-border);
     padding: 20px 12px;
     gap: 4px;
     z-index: 10;
+    transition: width 0.25s ease, opacity 0.2s ease;
   }
 
   .sidebar-brand {
@@ -2802,23 +2853,27 @@ textarea:focus-visible {
    button to bring it back. Follows the exact same mechanism as the
    body.focus-minimal precedent further down this file: RequireAuth.jsx
    toggles a class on <body> (see its collapsed state + useEffect), and
-   that class alone decides whether .app-sidebar renders. */
-body.sidebar-collapsed .app-sidebar {
-  display: none !important;
-}
+   that class alone decides whether .app-sidebar renders. The actual
+   body.sidebar-collapsed .app-sidebar rule now lives up in the
+   @media (min-width: 900px) block above, alongside the other
+   collapsed-state desktop rules, so it can animate width/opacity instead
+   of snapping with display:none (display:none can't be transitioned). */
 
 /* The floating "expand sidebar" button is always in the DOM (see
    RequireAuth.jsx, a sibling of .app-layout/.pinned-layer -- not nested
    inside .app-sidebar, since that whole element is display:none while
-   collapsed). It stays hidden by default and only below 900px, where
-   there's no sidebar to restore in the first place; body.sidebar-collapsed
-   only ever gets set once RequireAuth mounts, but this rule keeps the
-   button visually inert in every other state regardless. */
+   collapsed). Below 900px it's fully display:none, since there's no
+   sidebar to restore in the first place. At/above 900px it's always
+   display:flex (laid out, positioned) but invisible/non-interactive by
+   default (opacity/pointer-events/transform), fading + scaling in only
+   once body.sidebar-collapsed is set -- this is what lets it animate
+   in sync with the sidebar's own collapse transition instead of popping
+   in via display:none -> display:flex. */
 .sidebar-expand-btn {
   display: none;
 }
 @media (min-width: 900px) {
-  body.sidebar-collapsed .sidebar-expand-btn {
+  .sidebar-expand-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2834,6 +2889,15 @@ body.sidebar-collapsed .app-sidebar {
     color: var(--primary);
     box-shadow: 0 4px 14px var(--shadow-soft);
     cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.92);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  body.sidebar-collapsed .sidebar-expand-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
   }
   body.sidebar-collapsed .sidebar-expand-btn:hover {
     background: var(--ambient);
@@ -2961,6 +3025,11 @@ body.sidebar-collapsed .app-sidebar {
     transition: none;
   }
   .chat-bubble {
+    transition: none;
+  }
+  .app-sidebar,
+  .pinned-layer,
+  .sidebar-expand-btn {
     transition: none;
   }
 }

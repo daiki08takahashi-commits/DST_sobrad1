@@ -347,6 +347,54 @@ export async function getJournalPhotoBlobUrl(entryId) {
   return URL.createObjectURL(blob);
 }
 
+// ---- journal: file attachment -----------------------------------------------
+// Fully parallel to the photo attachment functions above -- same
+// requestMultipart() helper, same field name ('file'), just a different
+// endpoint. Unlike a photo, an attached file (PDF/Word/Excel/etc.) isn't
+// meant to be displayed inline, so there's no blob-URL thumbnail fetcher
+// here -- see downloadJournalFile below instead.
+
+export function uploadJournalFile(entryId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return requestMultipart(`/journal/${entryId}/file`, { method: 'POST', formData });
+}
+
+export function deleteJournalFile(entryId) {
+  return request(`/journal/${entryId}/file`, { method: 'DELETE' });
+}
+
+// Downloads a journal entry's attached file -- GET /api/journal/{id}/file
+// requires the Authorization header, which a plain <a href="..."> can't
+// send, so this fetches it manually (mirroring getJournalPhotoBlobUrl's
+// auth/error handling above) and then drives the browser's normal download
+// UI via a throwaway <a download> click, rather than navigating the page
+// away to the raw file response.
+export async function downloadJournalFile(entryId, fileName) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}/journal/${entryId}/file`, { headers });
+  } catch {
+    throw new ApiError("Couldn't reach the server. Please try again.", 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(`Couldn't load the file (${response.status}).`, response.status);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'file';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ---- companions -------------------------------------------------------------
 // The two built-ins ('sobrad' | 'friends') plus any custom companions the
 // user has added -- see companions.js for how a raw row from these calls is

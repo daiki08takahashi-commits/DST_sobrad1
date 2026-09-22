@@ -137,6 +137,17 @@ class JournalEntryOut(BaseModel):
     # The photo itself is fetched separately, only when actually viewed, via
     # GET /api/journal/{id}/photo.
     has_photo: bool = False
+    # Whether a general file attachment (PDF, Word, Excel, PowerPoint, plain
+    # text, CSV) is attached -- separate and additional to has_photo above;
+    # same "boolean flag, not the actual bytes" pattern, for the same reason.
+    # The file itself is fetched separately via GET /api/journal/{id}/file.
+    has_file: bool = False
+    # The original uploaded filename (e.g. "resignation_letter.pdf"), or None
+    # when no file is attached. Safe to expose directly here (unlike the
+    # actual file bytes, which stay behind the dedicated GET endpoint) since
+    # it's just a string, and the frontend needs it to label/download the
+    # attachment meaningfully.
+    file_name: Optional[str] = None
 
 
 # ---- Breathing sessions ----

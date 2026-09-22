@@ -138,6 +138,21 @@ class JournalEntry(Base):
     photo = Column(LargeBinary, nullable=True)
     photo_content_type = Column(String, nullable=True)
 
+    # Optional attached general file (PDF, Word, Excel, PowerPoint, plain
+    # text, CSV) -- separate and additional to the photo attachment above,
+    # not a replacement for it: an entry may have a photo, a file, both, or
+    # neither. Same "raw bytes in the DB" rationale as photo (no persistent
+    # disk), and same "dedicated fetch endpoint, not inlined" rationale (see
+    # GET /api/journal/{id}/file). file_name additionally stores the original
+    # uploaded filename (e.g. "resignation_letter.pdf") -- photo doesn't need
+    # this since it's always displayed inline as an image, but a general file
+    # needs to download/display under something more meaningful than a
+    # generic name. All three nullable: no file attached is the default
+    # state.
+    file = Column(LargeBinary, nullable=True)
+    file_content_type = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+
     user = relationship("User", back_populates="journal_entries")
 
 

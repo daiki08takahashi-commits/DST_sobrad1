@@ -104,9 +104,19 @@ with engine.connect() as _conn:
     _existing_journal_entry_cols = {
         row[1] for row in _conn.execute(text("PRAGMA table_info(journal_entries)"))
     }
+    # journal_entries.file / file_content_type / file_name -- optional general
+    # document attachment (PDF, Word, Excel, PowerPoint, plain text, CSV) on
+    # a journal entry, added after the initial release. See models.py's
+    # JournalEntry.file docstring. Separate and additional to photo above
+    # (an entry may have a photo, a file, both, or neither). All nullable, no
+    # default needed (no file attached is the default state for every
+    # existing pre-migration row) -- same rationale/pattern as photo above.
     _new_journal_entry_columns = {
         "photo": "BLOB",
         "photo_content_type": "VARCHAR",
+        "file": "BLOB",
+        "file_content_type": "VARCHAR",
+        "file_name": "VARCHAR",
     }
     for _col_name, _col_ddl in _new_journal_entry_columns.items():
         if _col_name not in _existing_journal_entry_cols:

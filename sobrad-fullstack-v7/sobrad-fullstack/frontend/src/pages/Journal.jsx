@@ -28,6 +28,12 @@ export default function Journal() {
   // allowing a second click mid-request.
   const [photoBusy, setPhotoBusy] = useState({});
   const fileInputRefs = useRef({});
+  // Entry id -> true while an upload/delete for that entry's FILE attachment
+  // (as opposed to its photo, above) is in flight -- fully parallel to
+  // photoBusy, kept separate so a photo action and a file action on the same
+  // entry never disable each other's buttons.
+  const [fileBusy, setFileBusy] = useState({});
+  const attachmentInputRefs = useRef({});
   // Mirrors `photoUrls` so the unmount-cleanup effect below always revokes
   // whatever was most recently in state, not a stale closure over the
   // value from when that effect was first set up.
@@ -163,6 +169,46 @@ export default function Journal() {
     if (url) window.open(url, '_blank', 'noopener');
   }
 
+  // ---- file attachment -- fully parallel to the photo handlers above,
+  // sitting beside them rather than replacing anything. A file isn't shown
+  // inline (see api.js's downloadJournalFile), so there's no blob-URL cache
+  // or unmount cleanup to mirror here.
+
+  async function handleFileChosen(entryId, file) {
+    if (!file) return;
+    setFileBusy((prev) => ({ ...prev, [entryId]: true }));
+    try {
+      const updated = await api.uploadJournalFile(entryId, file);
+      replaceEntry(updated);
+      showToast('File added.');
+    } catch (err) {
+      showToast(err.message || "Couldn't attach that file. Please try again.");
+    } finally {
+      setFileBusy((prev) => ({ ...prev, [entryId]: false }));
+    }
+  }
+
+  async function handleRemoveFile(entryId) {
+    setFileBusy((prev) => ({ ...prev, [entryId]: true }));
+    try {
+      const updated = await api.deleteJournalFile(entryId);
+      replaceEntry(updated);
+      showToast('File removed.');
+    } catch (err) {
+      showToast(err.message || "Couldn't remove that file. Please try again.");
+    } finally {
+      setFileBusy((prev) => ({ ...prev, [entryId]: false }));
+    }
+  }
+
+  async function handleOpenFile(entryId, fileName) {
+    try {
+      await api.downloadJournalFile(entryId, fileName);
+    } catch (err) {
+      showToast(err.message || "Couldn't download that file. Please try again.");
+    }
+  }
+
   return (
     <>
       <Topbar title="Journal" />
@@ -249,6 +295,51 @@ export default function Journal() {
                   >
                     <span className="icon"><TrashIcon /></span>
                     Remove photo
+                  </button>
+                )}
+              </div>
+
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv"
+                ref={(el) => {
+                  attachmentInputRefs.current[entry.id] = el;
+                }}
+                onChange={(e) => {
+                  const file = e.target.files && e.target.files[0];
+                  handleFileChosen(entry.id, file);
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <div className="journal-file-actions">
+                {entry.has_file && (
+                  <button
+                    type="button"
+                    className="journal-file-chip"
+                    disabled={fileBusy[entry.id]}
+                    onClick={() => handleOpenFile(entry.id, entry.file_name)}
+                  >
+                    {entry.file_name}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  disabled={fileBusy[entry.id]}
+                  onClick={() => attachmentInputRefs.current[entry.id]?.click()}
+                >
+                  {entry.has_file ? 'Change file' : 'Add file'}
+                </button>
+                {entry.has_file && (
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    disabled={fileBusy[entry.id]}
+                    onClick={() => handleRemoveFile(entry.id)}
+                  >
+                    <span className="icon"><TrashIcon /></span>
+                    Remove file
                   </button>
                 )}
               </div>
