@@ -666,11 +666,11 @@ textarea:focus-visible {
   opacity: 0.75;
 }
 
-/* A well-organised ring, not the old staggered flex-wrap cluster: the four
-   small circles sit evenly spaced (360/4 = 90deg apart) around this
+/* A well-organised ring, not the old staggered flex-wrap cluster: the six
+   small circles sit evenly spaced (360/6 = 60deg apart) around this
    container's centre, starting with Sleep at the top (closest to Breathe,
    angle 0deg = 12 o'clock) and going clockwise -- Sleep, Journal, Chat,
-   Study -- matching the child order in Home.jsx.
+   Study, Settings, Family -- matching the child order in Home.jsx.
    `position: relative` + explicit width/height keeps this box's own size
    in normal flow (so it doesn't collapse to 0 height and get overlapped by
    whatever renders below it), and each small circle is positioned
@@ -680,9 +680,10 @@ textarea:focus-visible {
    negative angle" trick, which moves the circle to the right spot on the
    circle's circumference while keeping its own icon/label upright instead
    of rotated. Radius 105px keeps the 82px circles comfortably clear of
-   each other (adjacent circles are `radius`px apart centre-to-centre at a
-   90deg spacing, i.e. plenty of edge-to-edge gap here) while still reading
-   as a tight, deliberate ring under the Breathe circle. */
+   each other (the closer 60deg spacing pulls adjacent circles nearer than
+   the old 90deg layout did, but still leaves a clean gap at this radius)
+   while still reading as a tight, deliberate ring under the Breathe
+   circle. */
 .nav-cluster {
   position: relative;
   width: 300px;
@@ -711,17 +712,25 @@ textarea:focus-visible {
 .nav-circle-small:nth-child(1) {
   transform: rotate(0deg) translate(0, -105px) rotate(0deg);
 }
-/* Journal -- 90deg clockwise, 3 o'clock. */
+/* Journal -- 60deg clockwise, 2 o'clock. */
 .nav-circle-small:nth-child(2) {
-  transform: rotate(90deg) translate(0, -105px) rotate(-90deg);
+  transform: rotate(60deg) translate(0, -105px) rotate(-60deg);
 }
-/* Chat -- 180deg, directly opposite Sleep, 6 o'clock. */
+/* Chat -- 120deg clockwise, 4 o'clock. */
 .nav-circle-small:nth-child(3) {
+  transform: rotate(120deg) translate(0, -105px) rotate(-120deg);
+}
+/* Study -- 180deg, directly opposite Sleep, 6 o'clock. */
+.nav-circle-small:nth-child(4) {
   transform: rotate(180deg) translate(0, -105px) rotate(-180deg);
 }
-/* Study -- 270deg clockwise, 9 o'clock. */
-.nav-circle-small:nth-child(4) {
-  transform: rotate(270deg) translate(0, -105px) rotate(-270deg);
+/* Settings -- 240deg clockwise, 8 o'clock. */
+.nav-circle-small:nth-child(5) {
+  transform: rotate(240deg) translate(0, -105px) rotate(-240deg);
+}
+/* Family -- 300deg clockwise, 10 o'clock. */
+.nav-circle-small:nth-child(6) {
+  transform: rotate(300deg) translate(0, -105px) rotate(-300deg);
 }
 .nav-circle-small .icon {
   width: 20px;
@@ -754,13 +763,19 @@ textarea:focus-visible {
     transform: rotate(0deg) translate(0, -88px) rotate(0deg);
   }
   .nav-circle-small:nth-child(2) {
-    transform: rotate(90deg) translate(0, -88px) rotate(-90deg);
+    transform: rotate(60deg) translate(0, -88px) rotate(-60deg);
   }
   .nav-circle-small:nth-child(3) {
-    transform: rotate(180deg) translate(0, -88px) rotate(-180deg);
+    transform: rotate(120deg) translate(0, -88px) rotate(-120deg);
   }
   .nav-circle-small:nth-child(4) {
-    transform: rotate(270deg) translate(0, -88px) rotate(-270deg);
+    transform: rotate(180deg) translate(0, -88px) rotate(-180deg);
+  }
+  .nav-circle-small:nth-child(5) {
+    transform: rotate(240deg) translate(0, -88px) rotate(-240deg);
+  }
+  .nav-circle-small:nth-child(6) {
+    transform: rotate(300deg) translate(0, -88px) rotate(-300deg);
   }
   /* Ring radius shrank to 88px here (36px small-circle radius, so the
      small circles' near edge sits 52px from centre) -- shrink Breathe to
