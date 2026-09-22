@@ -15,6 +15,10 @@ const USERNAME_KEY = 'sobrad_username';
 // only and never touches the backend. Kept in sync with the inline
 // flash-prevention script in index.html.
 const THEME_KEY = 'sobrad_theme';
+// Whether the desktop Sidebar is fully hidden (see Sidebar.jsx /
+// RequireAuth.jsx) -- same deal as THEME_KEY above: a pure client-side
+// display preference, never sent to the backend.
+const SIDEBAR_COLLAPSED_KEY = 'sobrad_sidebar_collapsed';
 
 // ---- token / session storage ----------------------------------------------
 
@@ -79,6 +83,27 @@ export function setThemePreference(theme) {
     } else {
       window.localStorage.removeItem(THEME_KEY);
     }
+  } catch {
+    // localStorage unavailable -- the choice just won't persist, same
+    // graceful degradation as session storage above.
+  }
+}
+
+// ---- sidebar collapsed preference -------------------------------------------
+// Mirrors getThemePreference/setThemePreference above exactly -- a plain
+// boolean, defaulting to false (sidebar shown) when nothing is stored yet.
+
+export function getSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setSidebarCollapsed(collapsed) {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? 'true' : 'false');
   } catch {
     // localStorage unavailable -- the choice just won't persist, same
     // graceful degradation as session storage above.
@@ -607,6 +632,18 @@ export function aiStudyTechnique({ subject, challenge } = {}) {
     method: 'POST',
     body: { subject: subject || null, challenge: challenge || null },
   });
+}
+
+// ---- global content search (Sidebar search bar) ----------------------------
+// Backs the search box in Sidebar.jsx: one call fans out server-side across
+// journal entries, tasks, subjects and goals for the current user. Same
+// query-string-building + fetch convention as getTasks above.
+
+export function search(q) {
+  const params = [];
+  if (q) params.push(`q=${encodeURIComponent(q)}`);
+  const qs = params.length ? `?${params.join('&')}` : '';
+  return request(`/search${qs}`);
 }
 
 // ---- family sharing ----------------------------------------------------

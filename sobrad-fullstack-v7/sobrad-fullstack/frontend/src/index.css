@@ -2453,6 +2453,17 @@ textarea:focus-visible {
     left: 256px;
   }
 
+  /* When the sidebar is fully hidden (body.sidebar-collapsed -- see the
+     rule block right after this media query), there's no 256px column to
+     dodge any more, so the pinned FAB/toast layer goes back to centring
+     across the full viewport, same as below the breakpoint. .pinned-layer
+     is a sibling of .app-layout (both children of the same parent -- see
+     RequireAuth.jsx), so it's targeted directly here rather than nested
+     under .app-layout. */
+  body.sidebar-collapsed .pinned-layer {
+    left: 0;
+  }
+
   .app-sidebar {
     display: flex;
     flex-direction: column;
@@ -2480,11 +2491,130 @@ textarea:focus-visible {
     letter-spacing: 0.01em;
     color: var(--ink);
   }
+  .sidebar-brand span {
+    flex: 1 1 auto;
+  }
   .sidebar-logo {
     width: 24px;
     height: auto;
     display: block;
     flex: none;
+  }
+
+  /* Collapse button -- sits at the end of the brand row and hides the whole
+     sidebar (see body.sidebar-collapsed below). Same icon-button visual
+     language as the rest of the sidebar's controls: transparent by default,
+     a soft --ambient hover, brand-teal icon. */
+  .sidebar-collapse-btn {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+  }
+  .sidebar-collapse-btn:hover {
+    background: var(--ambient);
+  }
+  .sidebar-collapse-btn .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* ---- Sidebar search (journal / tasks / subjects / goals) ---- */
+  .sidebar-search {
+    position: relative;
+    padding: 0 10px 14px;
+  }
+  .sidebar-search-input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--input-bg);
+    border: 1.5px solid var(--input-border);
+    border-radius: var(--radius-input);
+    padding: 9px 12px;
+  }
+  .sidebar-search-input::placeholder {
+    color: var(--muted-2);
+  }
+  .sidebar-search-results {
+    position: absolute;
+    top: calc(100% - 6px);
+    left: 10px;
+    right: 10px;
+    z-index: 30;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-input);
+    box-shadow: 0 10px 28px var(--shadow);
+    padding: 6px;
+  }
+  .search-group + .search-group {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--card-border);
+  }
+  .search-group-header {
+    font-family: var(--font-label);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 6px 8px 2px;
+  }
+  .search-result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    padding: 8px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .search-result-row:hover {
+    background: var(--ambient);
+  }
+  .search-result-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .search-result-badge {
+    flex: none;
+    font-family: var(--font-label);
+    font-weight: 600;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    background: var(--ambient);
+    border-radius: 6px;
+    padding: 2px 6px;
+  }
+  .sidebar-search-empty {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--muted);
+    padding: 8px;
+    margin: 0;
   }
 
   .sidebar-nav {
@@ -2611,6 +2741,54 @@ textarea:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+/* ================= SIDEBAR: fully-hidden ("collapsed") state =============
+   Requirement: collapsing the sidebar removes it completely (not an
+   icon-only rail), freeing the full page width, with a small floating
+   button to bring it back. Follows the exact same mechanism as the
+   body.focus-minimal precedent further down this file: RequireAuth.jsx
+   toggles a class on <body> (see its collapsed state + useEffect), and
+   that class alone decides whether .app-sidebar renders. */
+body.sidebar-collapsed .app-sidebar {
+  display: none !important;
+}
+
+/* The floating "expand sidebar" button is always in the DOM (see
+   RequireAuth.jsx, a sibling of .app-layout/.pinned-layer -- not nested
+   inside .app-sidebar, since that whole element is display:none while
+   collapsed). It stays hidden by default and only below 900px, where
+   there's no sidebar to restore in the first place; body.sidebar-collapsed
+   only ever gets set once RequireAuth mounts, but this rule keeps the
+   button visually inert in every other state regardless. */
+.sidebar-expand-btn {
+  display: none;
+}
+@media (min-width: 900px) {
+  body.sidebar-collapsed .sidebar-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 20;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    color: var(--primary);
+    box-shadow: 0 4px 14px var(--shadow-soft);
+    cursor: pointer;
+  }
+  body.sidebar-collapsed .sidebar-expand-btn:hover {
+    background: var(--ambient);
+  }
+  body.sidebar-collapsed .sidebar-expand-btn .icon {
+    width: 18px;
+    height: 18px;
   }
 }
 

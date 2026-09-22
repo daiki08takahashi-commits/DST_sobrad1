@@ -23,7 +23,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.database import Base, engine
-from app.routers import ai_tools, auth, breathing, chat, family, focus, journal, mood, profile, review, settings, stats, study, tasks
+from app.routers import ai_tools, auth, breathing, chat, family, focus, journal, mood, profile, review, search, settings, stats, study, tasks
 
 # Create tables on startup if they don't already exist. sobrad.db is created
 # automatically in the working directory on first run.
@@ -164,6 +164,10 @@ app.include_router(profile.router)
 # only. See models.py's FamilyLink docstring and routers/family.py's module
 # docstring for the full feature scope.
 app.include_router(family.router)
+# Global search -- "search everything" bar across Journal entries, Tasks and
+# Study subjects/goals, scoped to the current user. See routers/search.py's
+# module docstring for the full feature scope.
+app.include_router(search.router)
 
 
 @app.get("/api/health", tags=["health"])

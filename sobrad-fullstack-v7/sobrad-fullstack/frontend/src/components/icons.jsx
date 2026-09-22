@@ -18,6 +18,18 @@ export function BackIcon(props) {
   );
 }
 
+// Mirror of BackIcon, pointing the other way -- used by the floating
+// "expand sidebar" button in RequireAuth.jsx (BackIcon itself is reused for
+// the in-sidebar collapse button, since a left chevron already reads as
+// "collapse/hide toward the left edge").
+export function ChevronRightIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.8" className="icon" {...props}>
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 export function BreatheIcon(props) {
   return (
     <svg {...base} strokeWidth="1.6" className="icon" {...props}>

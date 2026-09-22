@@ -822,3 +822,18 @@ class FamilyStudyRecordOut(BaseModel):
     child_username: str
     analysis: StudyAnalysisOut
     insights: StudyInsightsOut
+
+
+# ---- Global search ----
+# Response shape for GET /api/search -- the "search everything" bar across
+# Journal entries, Tasks, and Study subjects/goals. Always scoped to the
+# current user (see routers/search.py) and capped at 20 results per category
+# so one huge match can't blow out the response. JournalEntryOut/TaskOut/
+# SubjectOut/GoalOut are reused as-is -- no new shapes for the individual
+# results, just this container grouping them by category.
+
+class SearchResultsOut(BaseModel):
+    journal: List[JournalEntryOut] = []
+    tasks: List[TaskOut] = []
+    subjects: List[SubjectOut] = []
+    goals: List[GoalOut] = []

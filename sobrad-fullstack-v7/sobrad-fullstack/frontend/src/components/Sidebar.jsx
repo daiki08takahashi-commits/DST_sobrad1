@@ -1,9 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useTheme } from '../ThemeContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
 import dstLogoWhite from '../assets/dst_logo_white.png';
 import {
+  BackIcon,
   BreatheIcon,
   ChatIcon,
   EmergencyIcon,
@@ -41,10 +44,38 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];
 
-export default function Sidebar() {
+// Result groups in display order -- the keys match the /api/search response
+// shape exactly (see api.js's search()).
+const SEARCH_GROUPS = [
+  { key: 'journal', label: 'Journal', path: '/journal' },
+  { key: 'tasks', label: 'Tasks', path: '/study' },
+  { key: 'subjects', label: 'Subjects', path: '/study' },
+  { key: 'goals', label: 'Goals', path: '/study' },
+];
+
+// Journal text can run long -- a short single-line preview reads much
+// better in a narrow sidebar dropdown than a wrapped paragraph would.
+function truncate(text, max = 60) {
+  const trimmed = (text || '').trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
+}
+
+function resultLabel(group, item) {
+  if (group === 'journal') return truncate(item.text);
+  if (group === 'subjects') return item.name;
+  return item.title;
+}
+
+export default function Sidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const { username, profilePhoto, signOut } = useAuth();
   const { resolvedTheme } = useTheme();
+
+  // ---- content search (journal / tasks / subjects / goals) ----------------
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null); // null until a search has run
+  const [open, setOpen] = useState(false);
+  const searchBoxRef = useRef(null);
 
   function handleLogout() {
     signOut();
@@ -53,8 +84,57 @@ export default function Sidebar() {
 
   const initial = (username || '?').trim().charAt(0).toUpperCase() || '?';
 
+  // Debounces the actual /api/search call ~300ms behind typing, and skips
+  // the network entirely for an empty/whitespace query (mirrors the search
+  // debounce in Study.jsx's TasksTab).
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setResults(null);
+      return undefined;
+    }
+    const t = setTimeout(() => {
+      api
+        .search(trimmed)
+        .then((data) => setResults(data))
+        .catch(() => setResults(null));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Escape, or a click outside the search box, closes the results dropdown.
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    function handlePointerDown(e) {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [open]);
+
+  function goToResult(path) {
+    setOpen(false);
+    setQuery('');
+    setResults(null);
+    navigate(path);
+  }
+
+  const showDropdown = open && query.trim().length > 0;
+  const hasAnyResults = Boolean(
+    results && SEARCH_GROUPS.some(({ key }) => (results[key] || []).length > 0)
+  );
+
   return (
-    <nav className="app-sidebar" aria-label="Main navigation">
+    <nav className="app-sidebar" aria-label="Main navigation" aria-hidden={collapsed}>
       <div className="sidebar-brand">
         <img
           className="sidebar-logo"
@@ -62,6 +142,62 @@ export default function Sidebar() {
           alt=""
         />
         <span>Sõbrad</span>
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          onClick={() => onToggle?.(true)}
+          aria-label="Hide sidebar"
+          title="Hide sidebar"
+        >
+          <BackIcon />
+        </button>
+      </div>
+
+      <div className="sidebar-search" ref={searchBoxRef}>
+        <input
+          type="search"
+          className="sidebar-search-input"
+          placeholder="Search journal, tasks, study…"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          aria-label="Search journal, tasks, subjects and goals"
+        />
+        {showDropdown && (
+          <div className="sidebar-search-results" role="listbox">
+            {results && hasAnyResults && (
+              <>
+                {SEARCH_GROUPS.map(({ key, label, path }) => {
+                  const items = results[key] || [];
+                  if (items.length === 0) return null;
+                  return (
+                    <div className="search-group" key={key}>
+                      <div className="search-group-header">{label}</div>
+                      {items.map((item) => (
+                        <button
+                          key={`${key}-${item.id}`}
+                          type="button"
+                          className="search-result-row"
+                          onClick={() => goToResult(path)}
+                        >
+                          <span className="search-result-text">{resultLabel(key, item)}</span>
+                          {key === 'tasks' && item.status && (
+                            <span className="search-result-badge">{item.status}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+            {results && !hasAnyResults && <p className="sidebar-search-empty">No results</p>}
+            {!results && <p className="sidebar-search-empty">Searching…</p>}
+          </div>
+        )}
       </div>
 
       <div className="sidebar-nav">
