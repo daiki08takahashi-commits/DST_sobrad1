@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useTheme } from '../ThemeContext.jsx';
+import { useToast } from '../ToastContext.jsx';
 import dstLogo from '../assets/dst_logo.png';
 import dstLogoWhite from '../assets/dst_logo_white.png';
 
@@ -220,6 +221,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { resolvedTheme } = useTheme();
+  const showToast = useToast();
 
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [username, setUsername] = useState('');
@@ -278,7 +280,36 @@ export default function Login() {
         result = await api.login(username.trim(), password);
       }
       signIn(result.token, result.user?.username || username.trim());
-      const redirectTo = location.state?.from || '/home';
+
+      // If this sign-in/register was reached via a family-sharing invite
+      // link (FamilyJoin.jsx stashes the token here before sending an
+      // unauthenticated visitor to log in or register), finish accepting it
+      // now and land on /family instead of the usual /home. Any failure
+      // here (expired, already used, offline) just falls through to the
+      // normal destination -- the stashed token is always cleared either
+      // way so it isn't retried on some unrelated later login.
+      let redirectTo = location.state?.from || '/home';
+      let pendingInviteToken = null;
+      try {
+        pendingInviteToken = sessionStorage.getItem('sobrad_pending_invite_token');
+      } catch {
+        // sessionStorage unavailable -- no invite to pick up.
+      }
+      if (pendingInviteToken) {
+        try {
+          await api.acceptFamilyInvite(pendingInviteToken);
+          redirectTo = '/family';
+        } catch {
+          showToast("Couldn't complete that invite. You're logged in though.");
+        } finally {
+          try {
+            sessionStorage.removeItem('sobrad_pending_invite_token');
+          } catch {
+            // ignore
+          }
+        }
+      }
+
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -314,12 +345,12 @@ export default function Login() {
           <>
             <form className="login-form" onSubmit={handleSubmit} id="login-form">
               <div className="field">
-                <label htmlFor="username">Username</label>
+                <label htmlFor="username">Username or email</label>
                 <input
                   id="username"
                   name="username"
                   type="text"
-                  placeholder="your username"
+                  placeholder="your username or email"
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}

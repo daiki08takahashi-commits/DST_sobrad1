@@ -238,6 +238,12 @@ export function getMe() {
   return request('/auth/me');
 }
 
+// ---- account: email (used as an alternate login identifier) ----------------
+
+export function updateEmail(email) {
+  return request('/auth/email', { method: 'PATCH', body: { email } });
+}
+
 // ---- profile photo ----------------------------------------------------------
 
 export function uploadProfilePhoto(file) {
@@ -601,6 +607,41 @@ export function aiStudyTechnique({ subject, challenge } = {}) {
     method: 'POST',
     body: { subject: subject || null, challenge: challenge || null },
   });
+}
+
+// ---- family sharing ----------------------------------------------------
+// Lets a student invite a parent to see their Study data (grades/trends/AI
+// insight summary only -- never Journal, Mood, Chat, Focus, Emergency or
+// Progress) in a read-only view. See FamilyJoin.jsx / Family.jsx /
+// FamilyChildView.jsx.
+
+export function sendFamilyInvite(parentEmail) {
+  return request('/family/invite', { method: 'POST', body: { parent_email: parentEmail } });
+}
+
+export function getFamilyInvites() {
+  return request('/family/invites');
+}
+
+export function revokeFamilyInvite(linkId) {
+  return request(`/family/invites/${linkId}`, { method: 'DELETE' });
+}
+
+// Public -- hit before the parent is necessarily logged in.
+export function getFamilyInviteInfo(token) {
+  return request(`/family/invite-info?token=${encodeURIComponent(token)}`, { auth: false });
+}
+
+export function acceptFamilyInvite(token) {
+  return request('/family/accept', { method: 'POST', body: { token } });
+}
+
+export function getFamilyChildren() {
+  return request('/family/children');
+}
+
+export function getFamilyChildStudy(childId) {
+  return request(`/family/${childId}/study`);
 }
 
 export { ApiError };

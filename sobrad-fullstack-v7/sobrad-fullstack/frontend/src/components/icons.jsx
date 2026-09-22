@@ -86,6 +86,17 @@ export function StudyIcon(props) {
   );
 }
 
+export function FamilyIcon(props) {
+  return (
+    <svg {...base} strokeWidth="1.7" className="icon" {...props}>
+      <circle cx="8.5" cy="8" r="2.6" />
+      <circle cx="16" cy="9" r="2.1" />
+      <path d="M3.5 19v-1.2A4 4 0 0 1 7.5 13.8h2a4 4 0 0 1 4 4V19" />
+      <path d="M14.5 13.9A3.4 3.4 0 0 1 16.8 13a3.4 3.4 0 0 1 3.7 3.4V19" />
+    </svg>
+  );
+}
+
 export function ShieldIcon(props) {
   return (
     <svg {...base} strokeWidth="1.7" className="icon" {...props}>

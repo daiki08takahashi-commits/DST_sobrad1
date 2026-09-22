@@ -4048,3 +4048,124 @@ body.focus-minimal .emergency-fab {
     grid-column: 1 / -1;
   }
 }
+
+/* ================= FAMILY SHARING =================
+   FamilyJoin.jsx (public invite landing), Family.jsx (parent's list of
+   shared children) and FamilyChildView.jsx (a child's read-only Study
+   record) -- see api.js's "family sharing" section. All existing tokens,
+   no new colours, so nothing here needs its own dark-mode block. */
+
+/* ---- FamilyJoin.jsx ---- */
+.family-join-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: 28px 22px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+}
+.family-join-message {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.family-join-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* ---- Family.jsx (parent's list of children) ---- */
+.family-child-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.family-child-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 22px var(--shadow-soft);
+  color: inherit;
+  text-align: left;
+}
+.family-child-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ambient);
+  color: var(--primary);
+}
+.family-child-icon .icon {
+  width: 22px;
+  height: 22px;
+}
+.family-child-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15.5px;
+  color: var(--ink);
+}
+
+/* ---- FamilyChildView.jsx ---- */
+.family-child-heading {
+  font-size: 19px;
+  color: var(--ink);
+}
+
+/* ---- Settings.jsx: FamilySharingSection's sent-invite list ---- */
+.family-invite-list {
+  display: flex;
+  flex-direction: column;
+}
+.family-invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--card-border);
+}
+.family-invite-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.family-invite-email {
+  font-family: var(--font-label);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.family-invite-status {
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--muted);
+}
+.family-invite-status-pending {
+  color: var(--primary);
+}
+.family-invite-status-revoked {
+  color: var(--muted-2);
+}

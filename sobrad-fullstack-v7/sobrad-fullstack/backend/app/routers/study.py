@@ -591,13 +591,15 @@ def _subject_averages(grades: List[Grade], threshold: float) -> List[SubjectAver
     return rows
 
 
-@router.get("/analysis", response_model=StudyAnalysisOut)
-def get_analysis(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    threshold = current_user.passing_threshold
-    grades = db.query(Grade).filter(Grade.user_id == current_user.id).all()
+def _compute_analysis(user: User, db: Session) -> StudyAnalysisOut:
+    """Body of get_analysis(), extracted to take a plain `user` instead of
+    relying on the injected current_user -- so routers/family.py can call
+    this for a linked child's User row too (its read-only parent view), with
+    zero duplicated logic. See get_analysis() below and family.py's
+    GET /{child_user_id}/study.
+    """
+    threshold = user.passing_threshold
+    grades = db.query(Grade).filter(Grade.user_id == user.id).all()
 
     if not grades:
         return StudyAnalysisOut(
@@ -616,6 +618,14 @@ def get_analysis(
         summary = f"Everything's averaging {threshold_label}% or above right now — no subject is flagged for extra focus."
 
     return StudyAnalysisOut(subjects=rows, summary=summary)
+
+
+@router.get("/analysis", response_model=StudyAnalysisOut)
+def get_analysis(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return _compute_analysis(current_user, db)
 
 
 # ---------------------------------------------------------------------------
@@ -826,15 +836,16 @@ def _build_ai_insight_summary(stats: dict) -> Optional[str]:
         return None
 
 
-@router.get("/insights", response_model=StudyInsightsOut)
-def get_insights(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    threshold = current_user.passing_threshold
+def _compute_insights(user: User, db: Session) -> StudyInsightsOut:
+    """Body of get_insights(), extracted to take a plain `user` instead of
+    relying on the injected current_user -- same rationale/pattern as
+    _compute_analysis above. See get_insights() below and family.py's
+    GET /{child_user_id}/study.
+    """
+    threshold = user.passing_threshold
     grades = (
         db.query(Grade)
-        .filter(Grade.user_id == current_user.id)
+        .filter(Grade.user_id == user.id)
         .order_by(Grade.date.asc(), Grade.id.asc())
         .all()
     )
@@ -912,3 +923,11 @@ def get_insights(
         trend=trend,
         generated_by=generated_by,
     )
+
+
+@router.get("/insights", response_model=StudyInsightsOut)
+def get_insights(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return _compute_insights(current_user, db)

@@ -17,6 +17,9 @@ import Emergency from './pages/Emergency.jsx';
 import Focus from './pages/Focus.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
+import FamilyJoin from './pages/FamilyJoin.jsx';
+import Family from './pages/Family.jsx';
+import FamilyChildView from './pages/FamilyChildView.jsx';
 import ScreenBreakReminder from './ScreenBreakReminder.jsx';
 
 function RootRedirect() {
@@ -35,6 +38,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/family/join" element={<FamilyJoin />} />
 
             <Route element={<RequireAuth />}>
               <Route path="/home" element={<Home />} />
@@ -49,6 +53,8 @@ export default function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/focus" element={<Focus />} />
+              <Route path="/family" element={<Family />} />
+              <Route path="/family/:childId" element={<FamilyChildView />} />
             </Route>
 
             <Route path="*" element={<RootRedirect />} />

@@ -1,4 +1,5 @@
 import base64
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -13,6 +14,8 @@ from app.auth import (
 from app.database import get_db
 from app.models import User
 from app.schemas import (
+    EMAIL_REGEX,
+    EmailUpdate,
     PasswordChange,
     PasswordReset,
     SecurityQuestionCheck,
@@ -49,6 +52,7 @@ def _user_out(user: User) -> UserOut:
     return UserOut(
         id=user.id,
         username=user.username,
+        email=user.email,
         profile_photo_data_url=photo_data_url,
     )
 
@@ -80,7 +84,16 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: UserCreate, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == payload.username).first()
+    # `payload.username` can be either the account's username OR its email
+    # address (see User.email in models.py / PATCH /api/auth/email below) --
+    # the request schema is unchanged, the frontend just puts whichever one
+    # the person typed into this same field. Whichever it matches, the
+    # password is checked the same way below.
+    user = (
+        db.query(User)
+        .filter((User.username == payload.username) | (User.email == payload.username))
+        .first()
+    )
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
@@ -177,3 +190,45 @@ def set_security_question(
     db.commit()
     db.refresh(current_user)
     return SecurityQuestionCheck(has_question=True, question=current_user.security_question)
+
+
+# ---------------------------------------------------------------------------
+# Email as a login identifier -- lets a user optionally add an email address
+# to their account, usable interchangeably with their username at login (see
+# login() above) and as the address a family-sharing invite is sent to (see
+# routers/family.py). See User.email in models.py.
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/email", response_model=UserOut)
+def update_email(
+    payload: EmailUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    email = (payload.email or "").strip()
+    if not email or not re.match(EMAIL_REGEX, email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please enter a valid email address.",
+        )
+
+    # Uniqueness against any OTHER user's email (case-insensitive is a nice-
+    # to-have, not required -- but it's essentially free with ilike, and
+    # avoids two accounts with "Person@x.com" / "person@x.com" both being
+    # usable at login for the same address).
+    existing = (
+        db.query(User)
+        .filter(User.email.ilike(email), User.id != current_user.id)
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That email is already in use.",
+        )
+
+    current_user.email = email
+    db.commit()
+    db.refresh(current_user)
+    return _user_out(current_user)

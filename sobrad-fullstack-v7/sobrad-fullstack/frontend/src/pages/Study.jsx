@@ -1384,7 +1384,7 @@ function trendSubjectColor(name, order) {
 // Small hand-rolled inline SVG line chart -- no charting library. Plots each
 // grade chronologically (x = entry order, y = score 0-100), with a dashed
 // reference line at the passing threshold.
-function StudyTrendChart({ series, threshold, subjectColorOrder }) {
+export function StudyTrendChart({ series, threshold, subjectColorOrder }) {
   if (!series || series.length === 0) return null;
 
   const W = 600;
@@ -1514,7 +1514,7 @@ function truncateBarLabel(name) {
 // match StudyTrendChart via the same shared `subjectColorOrder`, with a
 // small trend arrow under each subject's name so "who's doing well" and
 // "who's moving" are both visible at a glance without reading numbers.
-function StudySubjectBars({ subjects, threshold, subjectColorOrder }) {
+export function StudySubjectBars({ subjects, threshold, subjectColorOrder }) {
   if (!subjects || subjects.length === 0) return null;
 
   const W = 600;

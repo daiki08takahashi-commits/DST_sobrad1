@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Topbar from '../components/Topbar.jsx';
 import * as api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
@@ -121,6 +121,218 @@ function ChangePasswordSection() {
           {submitting ? 'Saving…' : 'Change password'}
         </button>
       </form>
+    </section>
+  );
+}
+
+// Lets the account add/update an email, which the backend then also accepts
+// in the login form's username field (see Login.jsx) -- so this account has
+// two ways in, not a separate credential. Follows the exact same
+// "call the API, then applyUser() the response" pattern Profile.jsx already
+// uses after a photo upload, so the change shows up everywhere (Sidebar,
+// this very form's pre-fill) right away.
+function EmailSection() {
+  const { email, applyUser } = useAuth();
+  const showToast = useToast();
+  const [value, setValue] = useState(email || '');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Keeps the field pre-filled with whatever's actually on the account,
+  // including on first load (email starts null until AuthContext's own
+  // getMe() hydration resolves).
+  useEffect(() => {
+    setValue(email || '');
+  }, [email]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+
+    if (!value.trim()) {
+      setError('Please enter an email address.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const updatedUser = await api.updateEmail(value.trim());
+      applyUser(updatedUser);
+      showToast('Email updated.');
+    } catch (err) {
+      setError(err.message || "Couldn't save that email. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="settings-section">
+      <h3>Email</h3>
+      <p className="settings-section-hint">
+        Once it&rsquo;s set, you can log in with either your username or this email.
+      </p>
+      <form onSubmit={handleSubmit} className="reset-flow" style={{ marginBottom: 0 }}>
+        <div className="field">
+          <label htmlFor="account-email">Email</label>
+          <input
+            id="account-email"
+            type="email"
+            autoComplete="email"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="you@example.com"
+          />
+        </div>
+
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {submitting ? 'Saving…' : 'Save email'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+// ---- Family sharing: invite a parent to a read-only view of Study data ----
+// (grades/trends/the AI insight summary only -- see FamilyChildView.jsx).
+// Not called out as its own page in the brief, but sendFamilyInvite /
+// getFamilyInvites / revokeFamilyInvite need *some* place to be called from
+// on the student's side, or a parent could never receive a token to accept
+// via FamilyJoin.jsx -- Settings is the natural, low-key home for it,
+// following the same .settings-section pattern as everything else here.
+function FamilySharingSection() {
+  const showToast = useToast();
+  const [invites, setInvites] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [parentEmail, setParentEmail] = useState('');
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [revokingId, setRevokingId] = useState(null);
+
+  function loadInvites() {
+    return api
+      .getFamilyInvites()
+      .then((data) => {
+        setInvites(Array.isArray(data) ? data : []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }
+
+  useEffect(() => {
+    loadInvites();
+  }, []);
+
+  async function handleSend(e) {
+    e.preventDefault();
+    setError('');
+
+    if (!parentEmail.trim()) {
+      setError("Please enter a parent's email address.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await api.sendFamilyInvite(parentEmail.trim());
+      setParentEmail('');
+      await loadInvites();
+      showToast('Invite sent.');
+    } catch (err) {
+      setError(err.message || "Couldn't send that invite. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleRevoke(id, wasAccepted) {
+    setRevokingId(id);
+    try {
+      await api.revokeFamilyInvite(id);
+      await loadInvites();
+      showToast(wasAccepted ? 'Access removed.' : 'Invite revoked.');
+    } catch (err) {
+      showToast(err.message || "Couldn't do that. Please try again.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <section className="settings-section">
+      <h3>Family sharing</h3>
+      <p className="settings-section-hint">
+        Invite a parent or guardian to see your study progress -- grades, trends and the AI
+        summary. Nothing else here -- not your journal, mood, chats or anything from Focus or
+        Emergency -- is ever part of what they see.
+      </p>
+      <form onSubmit={handleSend} className="reset-flow" style={{ marginBottom: 0 }}>
+        <div className="field">
+          <label htmlFor="family-parent-email">Parent&rsquo;s email</label>
+          <input
+            id="family-parent-email"
+            type="email"
+            autoComplete="off"
+            value={parentEmail}
+            onChange={(e) => setParentEmail(e.target.value)}
+            placeholder="parent@example.com"
+          />
+        </div>
+
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <button type="submit" className="btn btn-primary" disabled={sending}>
+          {sending ? 'Sending…' : 'Send invite'}
+        </button>
+      </form>
+
+      {loaded && invites.length === 0 && (
+        <p className="mood-empty">No invites sent yet.</p>
+      )}
+
+      {invites.length > 0 && (
+        <div className="family-invite-list">
+          {invites.map((inv) => (
+            <div className="family-invite-row" key={inv.id}>
+              <div className="family-invite-row-text">
+                <span className="family-invite-email">{inv.parent_email}</span>
+                <span className={`family-invite-status family-invite-status-${inv.status}`}>
+                  {inv.status}
+                </span>
+              </div>
+              {/* Revoke works on a pending invite (withdraw it before it's
+                  ever accepted) and, just as importantly, on an already-
+                  accepted one -- that's what actually cuts off a parent
+                  who's been viewing for a while. Only a revoked invite has
+                  nothing left to revoke. */}
+              {(inv.status === 'pending' || inv.status === 'accepted') && (
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  onClick={() => handleRevoke(inv.id, inv.status === 'accepted')}
+                  disabled={revokingId === inv.id}
+                >
+                  {revokingId === inv.id
+                    ? 'Removing…'
+                    : inv.status === 'accepted'
+                      ? 'Remove access'
+                      : 'Revoke'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -336,7 +548,9 @@ export default function Settings() {
       <Topbar title="Settings" />
       <div className="screen-inner">
         <ChangePasswordSection />
+        <EmailSection />
         <SecurityQuestionSection />
+        <FamilySharingSection />
         <AppearanceSection />
         <AccessibilitySection />
       </div>

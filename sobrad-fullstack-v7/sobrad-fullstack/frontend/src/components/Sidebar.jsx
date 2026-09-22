@@ -7,6 +7,7 @@ import {
   BreatheIcon,
   ChatIcon,
   EmergencyIcon,
+  FamilyIcon,
   FocusIcon,
   HomeIcon,
   JournalIcon,
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { to: '/study', label: 'Study', Icon: StudyIcon },
   { to: '/focus', label: 'Focus', Icon: FocusIcon },
   { to: '/progress', label: 'Progress', Icon: ProgressIcon },
+  { to: '/family', label: 'Family', Icon: FamilyIcon },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon },
 ];
 

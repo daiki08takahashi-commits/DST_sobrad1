@@ -16,6 +16,10 @@ export function AuthProvider({ children }) {
   // from here) so an upload/removal on Profile shows up everywhere at once
   // instead of each consumer holding its own stale copy.
   const [profilePhoto, setProfilePhoto] = useState(null);
+  // Same story as profilePhoto above -- not persisted, (re)hydrated from
+  // GET /api/auth/me below. Used as an alternate login identifier (see
+  // Login.jsx) and set/changed from Settings.jsx's EmailSection.
+  const [email, setEmail] = useState(null);
 
   const signIn = useCallback((nextToken, nextUsername) => {
     api.setSession(nextToken, nextUsername);
@@ -28,6 +32,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUsername(null);
     setProfilePhoto(null);
+    setEmail(null);
   }, []);
 
   // Applies a fresh UserOut-shaped object (from GET /api/auth/me, or
@@ -38,6 +43,7 @@ export function AuthProvider({ children }) {
     if (!user) return;
     if (user.username) setUsername(user.username);
     setProfilePhoto(user.profile_photo_data_url || null);
+    setEmail(user.email || null);
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -72,13 +78,14 @@ export function AuthProvider({ children }) {
       token,
       username,
       profilePhoto,
+      email,
       isAuthenticated: Boolean(token),
       signIn,
       signOut,
       applyUser,
       refreshUser,
     }),
-    [token, username, profilePhoto, signIn, signOut, applyUser, refreshUser]
+    [token, username, profilePhoto, email, signIn, signOut, applyUser, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

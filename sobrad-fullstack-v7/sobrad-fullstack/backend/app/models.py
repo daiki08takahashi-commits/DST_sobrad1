@@ -28,6 +28,14 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    # Optional login identifier, in addition to username -- see routers/
+    # auth.py's login() docstring and PATCH /api/auth/email. Nullable: most
+    # existing/pre-migration users have none set. Uniqueness is enforced by
+    # a partial-ish unique index (ix_users_email_unique, created in main.py's
+    # migration block) rather than unique=True here, since SQLite unique
+    # indexes already treat NULL as distinct from NULL -- any number of users
+    # can have no email set while two users still can't share one.
+    email = Column(String, nullable=True)
     goals_reached = Column(Integer, default=0, nullable=False)
     # What counts as a "low" grade for this user -- passing marks differ
     # school to school, so this is user-configurable rather than a fixed
@@ -365,3 +373,27 @@ class FocusSession(Base):
     interrupted = Column(Boolean, default=False, nullable=False)
 
     user = relationship("User", back_populates="focus_sessions")
+
+
+# ---------------------------------------------------------------------------
+# Family sharing: a parent-child link, established via an emailed invite
+# token, that lets a linked parent view a READ-ONLY copy of the child's
+# Study data (subject averages/trends + the AI-narrated insights summary +
+# the raw trend series -- see routers/family.py). Deliberately does NOT gate
+# anything else -- journal, mood, chat, focus, emergency and progress stay
+# completely private and are never exposed through this feature.
+# ---------------------------------------------------------------------------
+
+
+class FamilyLink(Base):
+    __tablename__ = "family_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    child_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Set once accepted; null while the invite is still pending.
+    parent_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    parent_email = Column(String, nullable=False)
+    invite_token = Column(String, nullable=False, unique=True, index=True)
+    status = Column(String, nullable=False, default="pending")  # 'pending' | 'accepted' | 'revoked'
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)

@@ -23,7 +23,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.database import Base, engine
-from app.routers import ai_tools, auth, breathing, chat, focus, journal, mood, profile, review, settings, stats, study, tasks
+from app.routers import ai_tools, auth, breathing, chat, family, focus, journal, mood, profile, review, settings, stats, study, tasks
 
 # Create tables on startup if they don't already exist. sobrad.db is created
 # automatically in the working directory on first run.
@@ -62,11 +62,24 @@ with engine.connect() as _conn:
         # state for every existing pre-migration row).
         "profile_photo": "BLOB",
         "profile_photo_content_type": "VARCHAR",
+        # Optional login identifier -- see User.email's docstring in
+        # models.py. Uniqueness is enforced right below via a unique index
+        # rather than inline here, since SQLite ALTER TABLE ADD COLUMN can't
+        # add a UNIQUE constraint directly.
+        "email": "VARCHAR",
     }
     for _col_name, _col_ddl in _new_user_columns.items():
         if _col_name not in _existing_user_cols:
             _conn.execute(text(f"ALTER TABLE users ADD COLUMN {_col_name} {_col_ddl}"))
             _conn.commit()
+
+    # Enforce email uniqueness. SQLite unique indexes treat NULL as distinct
+    # from NULL, so this correctly allows any number of users with no email
+    # set while still preventing two users from sharing the same email.
+    _conn.execute(
+        text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique ON users(email)")
+    )
+    _conn.commit()
 
     # chat_messages.companion -- added when Sõbrad/Friends became separate
     # conversations with independent histories instead of one shared thread
@@ -147,6 +160,10 @@ app.include_router(settings.router)
 app.include_router(ai_tools.router)
 # Profile photo storage -- see routers/profile.py's module docstring.
 app.include_router(profile.router)
+# Family sharing -- read-only parent view of a linked child's Study data
+# only. See models.py's FamilyLink docstring and routers/family.py's module
+# docstring for the full feature scope.
+app.include_router(family.router)
 
 
 @app.get("/api/health", tags=["health"])

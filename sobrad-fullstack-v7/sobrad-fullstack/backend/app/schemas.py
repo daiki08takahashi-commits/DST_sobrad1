@@ -1,4 +1,5 @@
 """Pydantic request/response schemas for SOBRAD."""
+import re
 from datetime import date as date_type, datetime
 from typing import List, Optional
 
@@ -42,6 +43,9 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    # Optional login identifier in addition to username -- see User.email in
+    # models.py and PATCH /api/auth/email below. None when never set.
+    email: Optional[str] = None
     # Full "data:image/jpeg;base64,..." URI, or None when no photo is set.
     # Built from User.profile_photo/profile_photo_content_type (see
     # routers/auth.py's _user_out helper and routers/profile.py) -- exposed
@@ -49,6 +53,17 @@ class UserOut(BaseModel):
     # tag can render it directly without needing to send an Authorization
     # header.
     profile_photo_data_url: Optional[str] = None
+
+
+# A light regex, not pydantic's EmailStr/email-validator (not an installed
+# dependency, and this is a prototype) -- good enough to catch a blank or
+# obviously-malformed address without pulling in a new dependency. Shared by
+# EmailUpdate below and FamilyInviteCreate in the family-sharing section.
+EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+class EmailUpdate(BaseModel):
+    email: str
 
 
 class TokenResponse(BaseModel):
@@ -760,3 +775,50 @@ class AIStudyTechniqueRequest(BaseModel):
 class AIStudyTechniqueResponse(BaseModel):
     available: bool
     techniques: List[str] = []
+
+
+# ---- Family sharing (Study record only) ----
+# See models.py's FamilyLink docstring and routers/family.py's module
+# docstring for the full feature rationale/scope. StudyAnalysisOut and
+# StudyInsightsOut above are reused as-is for FamilyStudyRecordOut -- the
+# parent sees exactly the same Study computation the child would see on
+# their own /api/study/analysis and /api/study/insights, nothing more.
+
+class FamilyInviteCreate(BaseModel):
+    parent_email: str
+
+    @field_validator("parent_email")
+    @classmethod
+    def parent_email_looks_valid(cls, v: str) -> str:
+        if not v or not re.match(EMAIL_REGEX, v.strip()):
+            raise ValueError("Please enter a valid email address.")
+        return v.strip()
+
+
+class FamilyLinkOut(BaseModel):
+    id: int
+    parent_email: str
+    status: str
+    created_at: datetime
+    accepted_at: Optional[datetime] = None
+
+
+class FamilyInviteInfoOut(BaseModel):
+    child_username: str
+    status: str
+
+
+class FamilyAcceptIn(BaseModel):
+    token: str
+
+
+class FamilyChildOut(BaseModel):
+    link_id: int
+    child_user_id: int
+    child_username: str
+
+
+class FamilyStudyRecordOut(BaseModel):
+    child_username: str
+    analysis: StudyAnalysisOut
+    insights: StudyInsightsOut
