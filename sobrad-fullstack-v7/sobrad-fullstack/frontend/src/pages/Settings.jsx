@@ -340,7 +340,7 @@ function FamilySharingSection() {
 const PRESET_QUESTIONS = [
   "First pet's name?",
   'City you were born in?',
-  'Favorite teacher’s name?',
+  'Favourite teacher’s name?',
   'custom',
 ];
 
@@ -395,7 +395,7 @@ function SecurityQuestionSection() {
           >
             <option value="First pet's name?">First pet&rsquo;s name?</option>
             <option value="City you were born in?">City you were born in?</option>
-            <option value="Favorite teacher's name?">Favorite teacher&rsquo;s name?</option>
+            <option value="Favourite teacher's name?">Favourite teacher&rsquo;s name?</option>
             <option value="custom">Write my own…</option>
           </select>
         </div>

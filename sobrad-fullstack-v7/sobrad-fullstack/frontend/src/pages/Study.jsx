@@ -3497,14 +3497,14 @@ const AI_TOOL_DEFS = [
   },
   {
     key: 'summarize',
-    label: 'Summarize',
-    blurb: 'Summarize a chunk of notes into the key points.',
+    label: 'Summarise',
+    blurb: 'Summarise a chunk of notes into the key points.',
     fields: [
       {
         name: 'text',
         type: 'textarea',
         label: 'Paste your notes',
-        placeholder: 'Paste the notes you want summarized',
+        placeholder: 'Paste the notes you want summarised',
       },
     ],
   },

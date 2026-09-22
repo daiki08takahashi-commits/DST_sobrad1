@@ -17,7 +17,7 @@ const ROTATOR_LINES = [
 const PRESET_QUESTIONS = [
   "First pet's name?",
   'City you were born in?',
-  "Favorite teacher's name?",
+  "Favourite teacher's name?",
 ];
 
 // ---- Forgot-password flow, inline on the login screen ----------------------
