@@ -1,0 +1,386 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1790290058.9184709,
+    "seen": 1790290431.661735,
+    "ast_hash": "3ac995fbf93552a991ecab9b63f776aa",
+    "semantic_hash": "3ac995fbf93552a991ecab9b63f776aa"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/__init__.py": {
+    "mtime": 1790092532.5291326,
+    "seen": 1790290431.6617393,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/auth.py": {
+    "mtime": 1790092532.5214524,
+    "seen": 1790290431.661741,
+    "ast_hash": "b845ed0e72a18de38c6ba082ebe590e0",
+    "semantic_hash": "b845ed0e72a18de38c6ba082ebe590e0"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/database.py": {
+    "mtime": 1790092532.9970016,
+    "seen": 1790290431.6617417,
+    "ast_hash": "a9c09ad98481fee34609db7a0338cdcd",
+    "semantic_hash": "a9c09ad98481fee34609db7a0338cdcd"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/email_service.py": {
+    "mtime": 1790092532.9131377,
+    "seen": 1790290431.6617427,
+    "ast_hash": "51f8920daf380dc08651268823218a94",
+    "semantic_hash": "51f8920daf380dc08651268823218a94"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/main.py": {
+    "mtime": 1790107081.9182546,
+    "seen": 1790290431.6617434,
+    "ast_hash": "d31aee383999109784cb9f45e3f27dfe",
+    "semantic_hash": "d31aee383999109784cb9f45e3f27dfe"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/models.py": {
+    "mtime": 1790107081.8664775,
+    "seen": 1790290431.661744,
+    "ast_hash": "e1a0824e2e572eb5c81a23889b4d0585",
+    "semantic_hash": "e1a0824e2e572eb5c81a23889b4d0585"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/__init__.py": {
+    "mtime": 1790092532.5690873,
+    "seen": 1790290431.6617446,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/ai_tools.py": {
+    "mtime": 1790092532.6033018,
+    "seen": 1790290431.6617453,
+    "ast_hash": "8599fb7310823cd7a6bb3a362c21e842",
+    "semantic_hash": "8599fb7310823cd7a6bb3a362c21e842"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/auth.py": {
+    "mtime": 1790092532.552978,
+    "seen": 1790290431.661746,
+    "ast_hash": "37192927ca84a5040b07b6d7d9d90719",
+    "semantic_hash": "37192927ca84a5040b07b6d7d9d90719"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/breathing.py": {
+    "mtime": 1790092532.5416112,
+    "seen": 1790290431.6617467,
+    "ast_hash": "36f85cea3440f240e17bdab1b54fa4c4",
+    "semantic_hash": "36f85cea3440f240e17bdab1b54fa4c4"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/chat.py": {
+    "mtime": 1790094212.0,
+    "seen": 1790290431.6617475,
+    "ast_hash": "04d0b11d3e050e4fb0256872cf03d564",
+    "semantic_hash": "04d0b11d3e050e4fb0256872cf03d564"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/companions.py": {
+    "mtime": 1790106487.8331788,
+    "seen": 1790290431.661748,
+    "ast_hash": "b26efedf06c28030e2788e82088a24af",
+    "semantic_hash": "b26efedf06c28030e2788e82088a24af"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/family.py": {
+    "mtime": 1790092532.574415,
+    "seen": 1790290431.6617486,
+    "ast_hash": "512851595b615a2656b9915595c92d53",
+    "semantic_hash": "512851595b615a2656b9915595c92d53"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/focus.py": {
+    "mtime": 1790092532.5648944,
+    "seen": 1790290431.6617494,
+    "ast_hash": "87be0f1445f5874634ebd4cb526b548d",
+    "semantic_hash": "87be0f1445f5874634ebd4cb526b548d"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/journal.py": {
+    "mtime": 1790107081.9047844,
+    "seen": 1790290431.66175,
+    "ast_hash": "03d1659c78fa2845ddb0939459a0da60",
+    "semantic_hash": "03d1659c78fa2845ddb0939459a0da60"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/profile.py": {
+    "mtime": 1790092532.6086419,
+    "seen": 1790290431.6617506,
+    "ast_hash": "0fe587c01b9b5431fb6a7304913d2a39",
+    "semantic_hash": "0fe587c01b9b5431fb6a7304913d2a39"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/review.py": {
+    "mtime": 1790092532.5583797,
+    "seen": 1790290431.6617513,
+    "ast_hash": "652f5b6b3f600053038bd9bec0169fd1",
+    "semantic_hash": "652f5b6b3f600053038bd9bec0169fd1"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/search.py": {
+    "mtime": 1790094212.0,
+    "seen": 1790290431.6617517,
+    "ast_hash": "a8cd8a436a2080625d8af45288edc5bc",
+    "semantic_hash": "a8cd8a436a2080625d8af45288edc5bc"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/settings.py": {
+    "mtime": 1790092532.5984428,
+    "seen": 1790290431.6617525,
+    "ast_hash": "ba2fa66f36976cc98ddfec3b5d3b17cf",
+    "semantic_hash": "ba2fa66f36976cc98ddfec3b5d3b17cf"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/stats.py": {
+    "mtime": 1790092532.5478199,
+    "seen": 1790290431.6617532,
+    "ast_hash": "6468e1757955b49e55c98091da08e210",
+    "semantic_hash": "6468e1757955b49e55c98091da08e210"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/study.py": {
+    "mtime": 1790092532.5931683,
+    "seen": 1790290431.6617537,
+    "ast_hash": "143d5ccaccf7ef9928f598d23b7bf8d1",
+    "semantic_hash": "143d5ccaccf7ef9928f598d23b7bf8d1"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/routers/tasks.py": {
+    "mtime": 1790092532.7581365,
+    "seen": 1790290431.6617546,
+    "ast_hash": "3e074106093e745af6629a133535d580",
+    "semantic_hash": "3e074106093e745af6629a133535d580"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/app/schemas.py": {
+    "mtime": 1790107081.8871422,
+    "seen": 1790290431.661755,
+    "ast_hash": "6199e187fe9c3367e4f774ad19e09bbe",
+    "semantic_hash": "6199e187fe9c3367e4f774ad19e09bbe"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/start.sh": {
+    "mtime": 1790092532.322377,
+    "seen": 1790290431.6617556,
+    "ast_hash": "e68e498e487e90328edc1727e4df51a4",
+    "semantic_hash": "e68e498e487e90328edc1727e4df51a4"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/.oxlintrc.json": {
+    "mtime": 1790092532.1401224,
+    "seen": 1790290431.6617565,
+    "ast_hash": "5e6e3cea3e89137071c142dd7835b0ef",
+    "semantic_hash": "5e6e3cea3e89137071c142dd7835b0ef"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/package.json": {
+    "mtime": 1790092532.1065774,
+    "seen": 1790290431.661757,
+    "ast_hash": "1ec7c91023cb5d3b197c5dcd781aff93",
+    "semantic_hash": "1ec7c91023cb5d3b197c5dcd781aff93"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/public/manifest.json": {
+    "mtime": 1790092532.0387022,
+    "seen": 1790290431.6617577,
+    "ast_hash": "82cc5d6ccf2afc7f29e9d33905711038",
+    "semantic_hash": "82cc5d6ccf2afc7f29e9d33905711038"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/App.jsx": {
+    "mtime": 1790092528.8727276,
+    "seen": 1790290431.6617582,
+    "ast_hash": "d99236522be21e98da246edcc48ba52e",
+    "semantic_hash": "d99236522be21e98da246edcc48ba52e"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/AuthContext.jsx": {
+    "mtime": 1790092529.4655585,
+    "seen": 1790290431.6617587,
+    "ast_hash": "d01798e4f944730d0fc695921dbfcbb9",
+    "semantic_hash": "d01798e4f944730d0fc695921dbfcbb9"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/ScreenBreakReminder.jsx": {
+    "mtime": 1790092529.4015462,
+    "seen": 1790290431.6617591,
+    "ast_hash": "e6ec553cdfc7b540b3455c0e9f90c716",
+    "semantic_hash": "e6ec553cdfc7b540b3455c0e9f90c716"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/SettingsContext.jsx": {
+    "mtime": 1790092529.63282,
+    "seen": 1790290431.66176,
+    "ast_hash": "4ca3dbe443683c9be1fee5aa9c1c72a2",
+    "semantic_hash": "4ca3dbe443683c9be1fee5aa9c1c72a2"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/ThemeContext.jsx": {
+    "mtime": 1790092528.8035595,
+    "seen": 1790290431.6617606,
+    "ast_hash": "43fac39887bb792869f3bb4a0e94ecfa",
+    "semantic_hash": "43fac39887bb792869f3bb4a0e94ecfa"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/ToastContext.jsx": {
+    "mtime": 1790092528.7985585,
+    "seen": 1790290431.661761,
+    "ast_hash": "9f244d0c7cef4982e4132e91c9bc05ce",
+    "semantic_hash": "9f244d0c7cef4982e4132e91c9bc05ce"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/api.js": {
+    "mtime": 1790107081.8138683,
+    "seen": 1790290431.6617618,
+    "ast_hash": "b542c5e4d15132b0ed4f5467e34cec29",
+    "semantic_hash": "b542c5e4d15132b0ed4f5467e34cec29"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/companions.js": {
+    "mtime": 1790094212.0,
+    "seen": 1790290431.6617622,
+    "ast_hash": "31acda02762f2aca85204026c2a75491",
+    "semantic_hash": "31acda02762f2aca85204026c2a75491"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/ChatPanel.jsx": {
+    "mtime": 1790094212.0,
+    "seen": 1790290431.661763,
+    "ast_hash": "3e1b70479d490d9485bf318fdb91a669",
+    "semantic_hash": "3e1b70479d490d9485bf318fdb91a669"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/EmergencyFab.jsx": {
+    "mtime": 1790092528.7539487,
+    "seen": 1790290431.6617637,
+    "ast_hash": "a4c2a98ab76548ac2b196b7f788a4f2c",
+    "semantic_hash": "a4c2a98ab76548ac2b196b7f788a4f2c"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/RequireAuth.jsx": {
+    "mtime": 1790092528.742052,
+    "seen": 1790290431.6617644,
+    "ast_hash": "78b538bc5efb89a4b2d2f7fd7e8215e4",
+    "semantic_hash": "78b538bc5efb89a4b2d2f7fd7e8215e4"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/Sidebar.jsx": {
+    "mtime": 1790094212.0,
+    "seen": 1790290431.6617649,
+    "ast_hash": "1e73b8e4483f5099e9d1f2f63a69493b",
+    "semantic_hash": "1e73b8e4483f5099e9d1f2f63a69493b"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/Topbar.jsx": {
+    "mtime": 1790092528.7099445,
+    "seen": 1790290431.6617653,
+    "ast_hash": "5340d905860b91bfc07ad10a8e311170",
+    "semantic_hash": "5340d905860b91bfc07ad10a8e311170"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/components/icons.jsx": {
+    "mtime": 1790095143.0,
+    "seen": 1790290431.661766,
+    "ast_hash": "188d1a8a5b419dc89981dbafdbdf1b21",
+    "semantic_hash": "188d1a8a5b419dc89981dbafdbdf1b21"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/main.jsx": {
+    "mtime": 1790092529.5782833,
+    "seen": 1790290431.6617668,
+    "ast_hash": "e13723e2574429d9a6d849727e3ff695",
+    "semantic_hash": "e13723e2574429d9a6d849727e3ff695"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Breathing.jsx": {
+    "mtime": 1790092530.0440953,
+    "seen": 1790290431.661768,
+    "ast_hash": "02736f23c3345842760aa496bec18820",
+    "semantic_hash": "02736f23c3345842760aa496bec18820"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Chat.jsx": {
+    "mtime": 1790106487.8544557,
+    "seen": 1790290431.6617684,
+    "ast_hash": "c3b7748f5c68340ff36b4689463c5a04",
+    "semantic_hash": "c3b7748f5c68340ff36b4689463c5a04"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Emergency.jsx": {
+    "mtime": 1790092529.858623,
+    "seen": 1790290431.6617692,
+    "ast_hash": "c275ae76d86c131deb651475c762df85",
+    "semantic_hash": "c275ae76d86c131deb651475c762df85"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Family.jsx": {
+    "mtime": 1790092529.9591436,
+    "seen": 1790290431.6617696,
+    "ast_hash": "a2163726a8b027ef297bd030e30684d5",
+    "semantic_hash": "a2163726a8b027ef297bd030e30684d5"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/FamilyChildView.jsx": {
+    "mtime": 1790092529.8904724,
+    "seen": 1790290431.6617706,
+    "ast_hash": "69149a446f175a437acecc36b4fdb6cc",
+    "semantic_hash": "69149a446f175a437acecc36b4fdb6cc"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/FamilyJoin.jsx": {
+    "mtime": 1790092529.881235,
+    "seen": 1790290431.661771,
+    "ast_hash": "f3cdab08bbd3470eaf1bc8f15ada4582",
+    "semantic_hash": "f3cdab08bbd3470eaf1bc8f15ada4582"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Home.jsx": {
+    "mtime": 1790094563.0,
+    "seen": 1790290431.6617718,
+    "ast_hash": "69e02ec7d7a39f16e63eafe47fac0322",
+    "semantic_hash": "69e02ec7d7a39f16e63eafe47fac0322"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Insomnia.jsx": {
+    "mtime": 1790092529.876379,
+    "seen": 1790290431.6617723,
+    "ast_hash": "187c2099e34e125778af209c519acb69",
+    "semantic_hash": "187c2099e34e125778af209c519acb69"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Journal.jsx": {
+    "mtime": 1790107081.84257,
+    "seen": 1790290431.661773,
+    "ast_hash": "623fc130e70c3c0a787a1e41cf3301e5",
+    "semantic_hash": "623fc130e70c3c0a787a1e41cf3301e5"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Login.jsx": {
+    "mtime": 1790092861.9494886,
+    "seen": 1790290431.661774,
+    "ast_hash": "bab437ac61dbca2e2f62ef69658a9574",
+    "semantic_hash": "bab437ac61dbca2e2f62ef69658a9574"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Profile.jsx": {
+    "mtime": 1790092529.8856375,
+    "seen": 1790290431.6617746,
+    "ast_hash": "863d70018b89f1a39773d9337b4046af",
+    "semantic_hash": "863d70018b89f1a39773d9337b4046af"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Settings.jsx": {
+    "mtime": 1790092861.9394844,
+    "seen": 1790290431.661775,
+    "ast_hash": "76d93b44d848cd2270943fea81f72b56",
+    "semantic_hash": "76d93b44d848cd2270943fea81f72b56"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/src/pages/Study.jsx": {
+    "mtime": 1790106487.7568297,
+    "seen": 1790290431.6617758,
+    "ast_hash": "fea026f00b8aa7b01bb3744604fd88d8",
+    "semantic_hash": "fea026f00b8aa7b01bb3744604fd88d8"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/start.sh": {
+    "mtime": 1790092532.0698216,
+    "seen": 1790290431.6617763,
+    "ast_hash": "05fc89d6eb53ec0f83a89dc34f0f51ce",
+    "semantic_hash": "05fc89d6eb53ec0f83a89dc34f0f51ce"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/vite.config.js": {
+    "mtime": 1790092528.6270056,
+    "seen": 1790290431.6617768,
+    "ast_hash": "5d54447744c19ccd28638a5c668d15ea",
+    "semantic_hash": "5d54447744c19ccd28638a5c668d15ea"
+  },
+  "CLAUDE.md": {
+    "mtime": 1790290058.9174712,
+    "seen": 1790290431.6617777,
+    "ast_hash": "8a6643a420fdad6bfb583523bc6cef16",
+    "semantic_hash": "8a6643a420fdad6bfb583523bc6cef16"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/README.md": {
+    "mtime": 1789516695.0552871,
+    "seen": 1790290431.6617782,
+    "ast_hash": "4248dc31af723a1d8ea9e5518526b6ff",
+    "semantic_hash": "4248dc31af723a1d8ea9e5518526b6ff"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/README.md": {
+    "mtime": 1790092533.0215523,
+    "seen": 1790290431.6617787,
+    "ast_hash": "c02658fad47cc9d70ccab371c0916849",
+    "semantic_hash": "c02658fad47cc9d70ccab371c0916849"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/backend/requirements.txt": {
+    "mtime": 1790092532.2683718,
+    "seen": 1790290431.6617794,
+    "ast_hash": "5eab566feb40aa1351c0cbadf490cdbd",
+    "semantic_hash": "5eab566feb40aa1351c0cbadf490cdbd"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/README.md": {
+    "mtime": 1790092532.0759099,
+    "seen": 1790290431.6617799,
+    "ast_hash": "f5960c95d4b40b5a30d772b69a23b0b4",
+    "semantic_hash": "f5960c95d4b40b5a30d772b69a23b0b4"
+  },
+  "sobrad-fullstack-v7/sobrad-fullstack/frontend/index.html": {
+    "mtime": 1790092532.0794592,
+    "seen": 1790290431.6617808,
+    "ast_hash": "0347a133308c1d4f7c510515f68066ff",
+    "semantic_hash": "0347a133308c1d4f7c510515f68066ff"
+  }
+}
