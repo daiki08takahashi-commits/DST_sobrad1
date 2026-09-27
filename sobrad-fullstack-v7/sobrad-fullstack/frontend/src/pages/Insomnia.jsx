@@ -9,6 +9,58 @@ const FOAM_PEAK_GAIN = 0.12; // crash/foam accent -- modest relative to the main
 const DISPLAY_TICK_MS = 15000; // recompute remaining time a few times a minute
 const FADE_MS = 4000; // gentle fade-out when the timer runs out on its own
 
+// Client-side display preference, same deal as THEME_KEY in api.js -- never
+// touches the backend, just remembers the choice across reloads.
+const SLEEP_TRACK_KEY = 'sobrad_sleep_track';
+
+// The music layer's selectable tracks. "original" points at the long-
+// standing hardcoded file so anyone who never opens the picker gets
+// exactly the old behavior.
+const SLEEP_TRACKS = [
+  { id: 'original', name: 'Original', src: '/audio/insomnia-track.mp3' },
+  { id: 'low-tide-drift', name: 'Low Tide Drift', src: '/audio/sleep-sounds/low-tide-drift.mp3' },
+  { id: 'drift-in-432', name: 'Drift in 432', src: '/audio/sleep-sounds/drift-in-432.mp3' },
+  {
+    id: 'weightless-stillness',
+    name: 'Weightless Stillness',
+    src: '/audio/sleep-sounds/weightless-stillness.mp3',
+  },
+  {
+    id: 'warm-pads-and-felt-piano',
+    name: 'Warm Pads and Felt Piano',
+    src: '/audio/sleep-sounds/warm-pads-and-felt-piano.mp3',
+  },
+  {
+    id: 'gravitys-gentle-pull',
+    name: "Gravity's Gentle Pull",
+    src: '/audio/sleep-sounds/gravitys-gentle-pull.mp3',
+  },
+  {
+    id: 'warm-analog-drift',
+    name: 'Warm Analog Drift',
+    src: '/audio/sleep-sounds/warm-analog-drift.mp3',
+  },
+  {
+    id: 'warm-analog-drift-alt',
+    name: 'Warm Analog Drift (Alt)',
+    src: '/audio/sleep-sounds/warm-analog-drift-alt.mp3',
+  },
+];
+const DEFAULT_TRACK_ID = SLEEP_TRACKS[0].id;
+
+// Reads back the saved track choice on mount. Falls back to the default
+// both when localStorage isn't available (private browsing, etc. -- same
+// defensive style as audio.play().catch(...) below) and when the stored id
+// doesn't match any known track (e.g. a track was removed after being saved).
+function getStoredTrackId() {
+  try {
+    const stored = window.localStorage.getItem(SLEEP_TRACK_KEY);
+    return SLEEP_TRACKS.some((track) => track.id === stored) ? stored : DEFAULT_TRACK_ID;
+  } catch {
+    return DEFAULT_TRACK_ID;
+  }
+}
+
 // Builds the tide's main "body" noise buffer. Instead of flat white noise
 // (Math.random()*2-1 for every sample), each sample runs through a one-pole
 // "leaky integrator" -- a running value that only nudges a little toward
@@ -61,6 +113,10 @@ export default function Insomnia() {
   const [muted, setMuted] = useState(false);
   const [tideOn, setTideOn] = useState(true);
   const [remaining, setRemaining] = useState(SESSION_SECONDS);
+  const [selectedTrackId, setSelectedTrackId] = useState(getStoredTrackId);
+
+  const selectedTrack =
+    SLEEP_TRACKS.find((track) => track.id === selectedTrackId) ?? SLEEP_TRACKS[0];
 
   const audioRef = useRef(null);
   const activeRef = useRef(false);
@@ -344,6 +400,22 @@ export default function Insomnia() {
     });
   }
 
+  // Switches the music-layer track. The picker UI already disables itself
+  // while `active` (see render below) so the user has to Stop first -- swapping
+  // the <audio> element's `src` out from under a playing session would need
+  // its own load/seek handling that isn't worth adding for what's otherwise a
+  // simple preference, so this just guards the same thing at the state level.
+  function selectTrack(id) {
+    if (activeRef.current) return;
+    setSelectedTrackId(id);
+    try {
+      window.localStorage.setItem(SLEEP_TRACK_KEY, id);
+    } catch {
+      // localStorage unavailable -- the choice just won't persist, same
+      // fallback as getStoredTrackId above.
+    }
+  }
+
   // Leaving the screen mid-session stops both layers, same as Breathing.jsx.
   useEffect(() => {
     return () => {
@@ -388,6 +460,29 @@ export default function Insomnia() {
             <span className="insomnia-tide-dot" aria-hidden="true" />
             Tide sounds {tideOn ? 'on' : 'off'}
           </button>
+
+          <div className="sleep-track-picker">
+            <p className="sleep-track-heading">Choose a sound</p>
+            <div className="sleep-track-list">
+              {SLEEP_TRACKS.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  className={`sleep-track-option${track.id === selectedTrackId ? ' selected' : ''}`}
+                  onClick={() => selectTrack(track.id)}
+                  disabled={active}
+                  aria-pressed={track.id === selectedTrackId}
+                >
+                  <span>{track.name}</span>
+                  {track.id === selectedTrackId ? (
+                    <span className="sleep-track-check" aria-hidden="true">
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <p className="breathe-note">
@@ -395,7 +490,7 @@ export default function Insomnia() {
           after two hours, or you can stop it any time.
         </p>
 
-        <audio ref={audioRef} src="/audio/insomnia-track.mp3" loop preload="none" />
+        <audio ref={audioRef} src={selectedTrack.src} loop preload="none" />
       </div>
     </>
   );
