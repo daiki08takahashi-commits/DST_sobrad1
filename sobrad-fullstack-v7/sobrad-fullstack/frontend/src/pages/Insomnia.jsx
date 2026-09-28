@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Topbar from '../components/Topbar.jsx';
-import { MoonIcon, SoundOnIcon, SoundOffIcon } from '../components/icons.jsx';
+import { MoonIcon, SoundOnIcon, SoundOffIcon, ChevronRightIcon } from '../components/icons.jsx';
 
 const SESSION_SECONDS = 2 * 60 * 60; // 2 hours
 const MUSIC_VOLUME = 0.45;
@@ -114,10 +114,12 @@ export default function Insomnia() {
   const [tideOn, setTideOn] = useState(true);
   const [remaining, setRemaining] = useState(SESSION_SECONDS);
   const [selectedTrackId, setSelectedTrackId] = useState(getStoredTrackId);
+  const [trackMenuOpen, setTrackMenuOpen] = useState(false);
 
   const selectedTrack =
     SLEEP_TRACKS.find((track) => track.id === selectedTrackId) ?? SLEEP_TRACKS[0];
 
+  const trackMenuRef = useRef(null);
   const audioRef = useRef(null);
   const activeRef = useRef(false);
   const mutedRef = useRef(false);
@@ -345,6 +347,10 @@ export default function Insomnia() {
 
     activeRef.current = true;
     setActive(true);
+    // Belt-and-suspenders: the trigger is disabled while active (see render
+    // below) so this shouldn't normally be reachable with the panel open,
+    // but close it anyway rather than leaving stale open state around.
+    setTrackMenuOpen(false);
 
     // Started inside the same click handler as the tide graph above, so
     // this still counts as a user gesture and autoplay-with-sound isn't
@@ -408,6 +414,7 @@ export default function Insomnia() {
   function selectTrack(id) {
     if (activeRef.current) return;
     setSelectedTrackId(id);
+    setTrackMenuOpen(false);
     try {
       window.localStorage.setItem(SLEEP_TRACK_KEY, id);
     } catch {
@@ -415,6 +422,29 @@ export default function Insomnia() {
       // fallback as getStoredTrackId above.
     }
   }
+
+  // Same open-while-mounted Escape/outside-click-close mechanism as
+  // CompanionRow's kebab menu in Chat.jsx (search `chat-list-row-menu`):
+  // only listens while the panel is open, ref-scoped to the whole picker
+  // so a click on the trigger itself doesn't immediately reopen after
+  // closing, cleans up both listeners on close/unmount.
+  useEffect(() => {
+    if (!trackMenuOpen) return undefined;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') setTrackMenuOpen(false);
+    }
+    function handlePointerDown(e) {
+      if (trackMenuRef.current && !trackMenuRef.current.contains(e.target)) {
+        setTrackMenuOpen(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [trackMenuOpen]);
 
   // Leaving the screen mid-session stops both layers, same as Breathing.jsx.
   useEffect(() => {
@@ -461,27 +491,46 @@ export default function Insomnia() {
             Tide sounds {tideOn ? 'on' : 'off'}
           </button>
 
-          <div className="sleep-track-picker">
-            <p className="sleep-track-heading">Choose a sound</p>
-            <div className="sleep-track-list">
-              {SLEEP_TRACKS.map((track) => (
-                <button
-                  key={track.id}
-                  type="button"
-                  className={`sleep-track-option${track.id === selectedTrackId ? ' selected' : ''}`}
-                  onClick={() => selectTrack(track.id)}
-                  disabled={active}
-                  aria-pressed={track.id === selectedTrackId}
-                >
-                  <span>{track.name}</span>
-                  {track.id === selectedTrackId ? (
-                    <span className="sleep-track-check" aria-hidden="true">
-                      ✓
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
+          {/* Collapsed "pull down" picker, mirroring CompanionRow's kebab
+              menu in Chat.jsx (search `chat-list-row-menu`): a single
+              trigger button + ref'd wrapper, toggled open state, and a
+              floating panel of the same options that used to render as an
+              always-visible vertical list. Locked shut while a session is
+              `active` (disabled trigger) so Stop is still required before
+              changing tracks -- see selectTrack()'s own guard above. */}
+          <div className="sleep-track-picker" ref={trackMenuRef}>
+            <button
+              type="button"
+              className={`sleep-track-trigger${trackMenuOpen ? ' open' : ''}`}
+              onClick={() => setTrackMenuOpen((prev) => !prev)}
+              disabled={active}
+              aria-haspopup="listbox"
+              aria-expanded={trackMenuOpen}
+            >
+              <span>Sound: {selectedTrack.name}</span>
+              <ChevronRightIcon className="sleep-track-trigger-chevron" aria-hidden="true" />
+            </button>
+            {trackMenuOpen && !active && (
+              <div className="sleep-track-panel" role="listbox">
+                {SLEEP_TRACKS.map((track) => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    className={`sleep-track-option${track.id === selectedTrackId ? ' selected' : ''}`}
+                    onClick={() => selectTrack(track.id)}
+                    role="option"
+                    aria-selected={track.id === selectedTrackId}
+                  >
+                    <span>{track.name}</span>
+                    {track.id === selectedTrackId ? (
+                      <span className="sleep-track-check" aria-hidden="true">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -957,21 +957,64 @@ textarea:focus-visible {
 .insomnia-tide-toggle.on .insomnia-tide-dot {
   background: var(--highlight);
 }
+/* "Pull down" track picker -- a collapsed trigger that expands into a
+   floating options panel, mirroring the .chat-list-row-menu/-panel pattern
+   used by CompanionRow's kebab menu in Chat.jsx (same relative-wrapper +
+   absolute-panel positioning, same --card/--card-border/--shadow floating
+   surface). .sleep-track-picker is that relative wrapper. */
 .sleep-track-picker {
   width: 100%;
+  position: relative;
 }
-.sleep-track-heading {
+.sleep-track-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-input);
+  padding: 11px 16px;
   font-family: var(--font-label);
   font-weight: 600;
-  font-size: 12.5px;
-  color: var(--muted);
-  text-align: center;
-  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
 }
-.sleep-track-list {
+.sleep-track-trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+/* ChevronRightIcon points east by default; rotated to read as a collapsed
+   "expand downward" affordance, then flipped to point up when the panel is
+   open (the conventional pull-down direction pairing). */
+.sleep-track-trigger-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+.sleep-track-trigger.open .sleep-track-trigger-chevron {
+  transform: rotate(-90deg);
+}
+.sleep-track-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-input);
+  box-shadow: 0 10px 28px var(--shadow);
+  padding: 8px;
 }
 .sleep-track-option {
   display: flex;
@@ -987,6 +1030,7 @@ textarea:focus-visible {
   font-size: 13.5px;
   color: var(--muted);
   text-align: left;
+  cursor: pointer;
 }
 /* Selected state mirrors .insomnia-tide-toggle.on above: --highlight is the
    app's reserved "selected/active" accent, --ambient the matching soft fill. */
@@ -994,9 +1038,6 @@ textarea:focus-visible {
   color: var(--ink);
   border-color: var(--highlight);
   background: var(--ambient);
-}
-.sleep-track-option:disabled {
-  opacity: 0.6;
 }
 .sleep-track-check {
   color: var(--highlight);
